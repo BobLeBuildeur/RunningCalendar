@@ -3,6 +3,8 @@
  * https://iguanasports.com.br/blogs/calendario-corridas-de-rua (as of bootstrap).
  * Link slugs match paths under /blogs/calendario-corridas-de-rua/ on that site.
  */
+import racesCsv from './races.csv?raw';
+
 export type RaceRow = {
 	/** ISO 8601 local date-time string for ordering */
 	sortKey: string;
@@ -22,100 +24,127 @@ export type RaceRow = {
 
 const base = 'https://iguanasports.com.br/blogs/calendario-corridas-de-rua';
 
-export const races: RaceRow[] = [
-	{
-		sortKey: '2026-04-26T06:00',
-		dateTimeDisplay: '26 Apr 2026, 06:00',
-		city: 'São Paulo',
-		state: 'SP',
-		country: 'Brasil',
-		name: 'Seven Run 2026',
-		distancesKm: [7, 14, 21.1, 28],
-		calendarSlug: 'seven-run-2026',
-	},
-	{
-		sortKey: '2026-05-31T07:00',
-		dateTimeDisplay: '31 May 2026, 07:00',
-		city: 'São Paulo',
-		state: 'SP',
-		country: 'Brasil',
-		name: 'SP10K Challenge 2026',
-		distancesKm: [10],
-		calendarSlug: '10k-sp-challenge-2026',
-	},
-	{
-		sortKey: '2026-06-21T05:45',
-		dateTimeDisplay: '21 Jun 2026, 05:45',
-		city: 'São Paulo',
-		state: 'SP',
-		country: 'Brasil',
-		name: 'Mizuno Athenas Run Stronger 2026',
-		distancesKm: [6, 12, 18, 25],
-		calendarSlug: 'athenas-run-stronger-2026',
-	},
-	{
-		sortKey: '2026-06-21T08:30',
-		dateTimeDisplay: '21 Jun 2026, 08:30',
-		city: 'São Paulo',
-		state: 'SP',
-		country: 'Brasil',
-		name: 'Athenas Kids Run Stronger 2026',
-		distancesKm: [],
-		distancesNote: 'Kids (ages 3–13); distances not listed in km on source',
-		calendarSlug: 'athenas-kids-run-stronger-2026',
-	},
-	{
-		sortKey: '2026-07-26T05:15',
-		dateTimeDisplay: '26 Jul 2026, 05:15',
-		city: 'São Paulo',
-		state: 'SP',
-		country: 'Brasil',
-		name: 'Nike SP City Marathon 2026',
-		distancesKm: [21.1, 42.2],
-		calendarSlug: 'sp-city-marathon-2026',
-	},
-	{
-		sortKey: '2026-08-30T05:30',
-		dateTimeDisplay: '30 Aug 2026, 05:30',
-		city: 'São Paulo',
-		state: 'SP',
-		country: 'Brasil',
-		name: 'Run The Bridge 2026',
-		distancesKm: [5, 10, 15, 30],
-		calendarSlug: 'run-the-bridge-2026',
-	},
-	{
-		sortKey: '2026-10-18T05:30',
-		dateTimeDisplay: '18 Oct 2026, 05:30',
-		city: 'São Paulo',
-		state: 'SP',
-		country: 'Brasil',
-		name: 'Mizuno Athenas Run Longer 2026',
-		distancesKm: [7, 14, 21.1, 28],
-		calendarSlug: 'athenas-run-longer-2026',
-	},
-	{
-		sortKey: '2026-10-18T08:30',
-		dateTimeDisplay: '18 Oct 2026, 08:30',
-		city: 'São Paulo',
-		state: 'SP',
-		country: 'Brasil',
-		name: 'Athenas Kids Run Longer 2026',
-		distancesKm: [],
-		distancesNote: 'Kids (ages 3–13); distances not listed in km on source',
-		calendarSlug: 'athenas-kids-run-longer-2026',
-	},
-	{
-		sortKey: '2026-11-29T06:00',
-		dateTimeDisplay: '29 Nov 2026, 06:00',
-		city: 'São Paulo',
-		state: 'SP',
-		country: 'Brasil',
-		name: "Venus Women's Half Marathon 2026",
-		distancesKm: [5, 10, 15, 21.1],
-		calendarSlug: 'venus-womens-half-marathon-2026',
-	},
-].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+/** Minimal RFC 4180-style CSV parser (quoted fields, commas). */
+function parseCsv(text: string): string[][] {
+	const rows: string[][] = [];
+	let row: string[] = [];
+	let field = '';
+	let i = 0;
+	let inQuotes = false;
+
+	const pushField = () => {
+		row.push(field);
+		field = '';
+	};
+	const pushRow = () => {
+		rows.push(row);
+		row = [];
+	};
+
+	while (i < text.length) {
+		const c = text[i];
+		if (inQuotes) {
+			if (c === '"') {
+				if (text[i + 1] === '"') {
+					field += '"';
+					i += 2;
+					continue;
+				}
+				inQuotes = false;
+				i++;
+				continue;
+			}
+			field += c;
+			i++;
+			continue;
+		}
+		if (c === '"') {
+			inQuotes = true;
+			i++;
+			continue;
+		}
+		if (c === ',') {
+			pushField();
+			i++;
+			continue;
+		}
+		if (c === '\r') {
+			i++;
+			continue;
+		}
+		if (c === '\n') {
+			pushField();
+			pushRow();
+			i++;
+			continue;
+		}
+		field += c;
+		i++;
+	}
+	pushField();
+	if (row.some((cell) => cell.length > 0)) pushRow();
+
+	return rows;
+}
+
+function parseDistancesKm(cell: string): number[] {
+	const t = cell.trim();
+	if (!t) return [];
+	return t
+		.split(';')
+		.map((s) => s.trim())
+		.filter(Boolean)
+		.map((s) => {
+			const n = Number(s);
+			if (Number.isNaN(n)) throw new Error(`Invalid km value: ${s}`);
+			return n;
+		});
+}
+
+function rowsToRaces(matrix: string[][]): RaceRow[] {
+	if (matrix.length < 2) return [];
+	const header = matrix[0].map((h) => h.trim());
+	const idx = (name: string) => {
+		const j = header.indexOf(name);
+		if (j === -1) throw new Error(`Missing CSV column: ${name}`);
+		return j;
+	};
+	const I = {
+		sortKey: idx('sortKey'),
+		dateTimeDisplay: idx('dateTimeDisplay'),
+		city: idx('city'),
+		state: idx('state'),
+		country: idx('country'),
+		name: idx('name'),
+		distancesKm: idx('distancesKm'),
+		distancesNote: idx('distancesNote'),
+		calendarSlug: idx('calendarSlug'),
+	};
+
+	const out: RaceRow[] = [];
+	for (let r = 1; r < matrix.length; r++) {
+		const line = matrix[r];
+		if (line.every((c) => !c.trim())) continue;
+		const note = line[I.distancesNote]?.trim();
+		out.push({
+			sortKey: line[I.sortKey].trim(),
+			dateTimeDisplay: line[I.dateTimeDisplay].trim(),
+			city: line[I.city].trim(),
+			state: line[I.state].trim(),
+			country: line[I.country].trim(),
+			name: line[I.name].trim(),
+			distancesKm: parseDistancesKm(line[I.distancesKm] ?? ''),
+			distancesNote: note || undefined,
+			calendarSlug: line[I.calendarSlug].trim(),
+		});
+	}
+	return out;
+}
+
+const parsed = parseCsv(racesCsv.trimEnd());
+export const races: RaceRow[] = rowsToRaces(parsed).sort((a, b) =>
+	a.sortKey.localeCompare(b.sortKey),
+);
 
 export function raceUrl(slug: string): string {
 	return `${base}/${slug}`;
