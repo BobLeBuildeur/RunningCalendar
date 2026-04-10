@@ -1,5 +1,11 @@
 ---
+import { races, raceUrl, formatKmList, type RaceRow } from '../data/races';
 
+function distancesCell(r: RaceRow): string {
+	if (r.distancesNote) return r.distancesNote;
+	const s = formatKmList(r.distancesKm);
+	return s ? `${s} km` : '—';
+}
 ---
 
 <html lang="en">
@@ -12,6 +18,38 @@
 	</head>
 	<body>
 		<h1>RunningCalendar</h1>
-		<p>Plain HTML placeholder. Layout and styling can come later.</p>
+		<p>
+			Initial race list from <a href="https://iguanasports.com.br">iguanasports.com.br</a> (calendar
+			<a href="https://iguanasports.com.br/blogs/calendario-corridas-de-rua">calendário de corridas</a>).
+		</p>
+
+		<table border="1" cellpadding="8" cellspacing="0">
+			<thead>
+				<tr>
+					<th scope="col">Date and time</th>
+					<th scope="col">Location</th>
+					<th scope="col">Name</th>
+					<th scope="col">Distances (km)</th>
+					<th scope="col">Link</th>
+				</tr>
+			</thead>
+			<tbody>
+				{
+					races.map((r) => (
+						<tr>
+							<td>{r.dateTimeDisplay}</td>
+							<td>
+								{r.city}, {r.state}, {r.country}
+							</td>
+							<td>{r.name}</td>
+							<td>{distancesCell(r)}</td>
+							<td>
+								<a href={raceUrl(r.calendarSlug)}>{raceUrl(r.calendarSlug)}</a>
+							</td>
+						</tr>
+					))
+				}
+			</tbody>
+		</table>
 	</body>
 </html>
