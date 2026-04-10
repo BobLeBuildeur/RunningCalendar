@@ -24,7 +24,7 @@ npm run preview
 ## GitHub Pages setup
 
 1. In the repository **Settings → Pages**, set **Source** to **GitHub Actions**.
-2. In `astro.config.mjs`, replace the `site` value with your Pages origin, for example `https://<your-username>.github.io`, so asset and canonical URLs resolve correctly. The `base` path `/RunningCalendar/` matches a repository named `RunningCalendar` published as a project site at `https://<your-username>.github.io/RunningCalendar/`. If your repository name differs, update `base` to `/<repository-name>/`.
+2. In `astro.config.mjs`, `site` is set to this org/user’s GitHub Pages host and `base` is `/RunningCalendar/` for a project site at `https://boblebuildeur.github.io/RunningCalendar/`. If you fork or rename the repo, update `site` and `base` to match [Astro’s GitHub deploy guide](https://docs.astro.build/en/guides/deploy/github/).
 3. Push to `main`; the **Deploy Astro to GitHub Pages** workflow builds and publishes the `dist` folder.
 
 ## Stack
