@@ -2,9 +2,9 @@
 import { defineConfig } from 'astro/config';
 
 // https://astro.build/config
-// For GitHub project pages: set `site` to `https://<your-username>.github.io`
+// GitHub project pages: site origin + repo name as path segment
 // (see https://docs.astro.build/en/guides/deploy/github/)
 export default defineConfig({
-	site: 'https://example.github.io',
+	site: 'https://boblebuildeur.github.io',
 	base: '/RunningCalendar/',
 });
