@@ -11,12 +11,14 @@ def repo_root() -> Path:
 
 
 def load_distance_slugs_by_km() -> dict[float, str]:
+	"""Map distance in km (float) to slug. CSV stores integer tenths of a km (e.g. 50 → 5.0)."""
 	path = repo_root() / "src" / "data" / "distances.csv"
 	by_km: dict[float, str] = {}
 	with path.open(newline="", encoding="utf-8") as f:
 		reader = csv.DictReader(f)
 		for row in reader:
-			km = float(row["km"].strip())
+			tenths = int(row["km"].strip())
+			km = tenths / 10.0
 			by_km[km] = row["slug"].strip()
 	return by_km
 

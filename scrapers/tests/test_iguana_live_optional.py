@@ -24,9 +24,9 @@ def test_live_articles_match_csv():
 	session = requests.Session()
 	session.headers.update({"User-Agent": "RunningCalendarBot/1.0"})
 	for row in rows:
-		slug = row["calendarSlug"]
+		url = row["detailUrl"]
+		slug = url.rstrip("/").rsplit("/", 1)[-1]
 		html = fetch_race_article(session, slug)
 		parsed = scrape_race(slug, html, km_to_slug=km)
 		assert parsed.sort_key == row["sortKey"], slug
-		assert parsed.date_time_display == row["dateTimeDisplay"], slug
 		assert parsed.name == row["name"], slug

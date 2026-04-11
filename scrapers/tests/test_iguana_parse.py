@@ -16,14 +16,11 @@ def test_seven_run_distances():
 	)
 	r = scrape_race("seven-run-2026", html, km_to_slug=km)
 	assert r.sort_key == "2026-04-26T06:00"
-	assert r.date_time_display == "26 Apr 2026, 06:00"
 	assert r.name == "Seven Run 2026"
 	assert r.city == "São Paulo"
 	assert r.state == "SP"
 	assert r.country == "Brasil"
 	assert r.distance_slugs == "7km;14km;21-1km;28km"
-	assert r.distances_note == ""
-	assert r.calendar_slug == "seven-run-2026"
 	assert r.provider_slug == "iguana-sports"
 
 
@@ -36,5 +33,4 @@ def test_kids_run_note():
 		encoding="utf-8",
 	)
 	r = scrape_race("athenas-kids-run-stronger-2026", html, km_to_slug=km)
-	assert "Kids" in r.distances_note
-	assert r.distance_slugs == ""
+	assert r.distance_slugs == "kids-run"

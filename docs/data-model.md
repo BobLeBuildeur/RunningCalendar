@@ -2,6 +2,8 @@
 
 RunningCalendar stores normalized race data in CSV files under `src/data/`. The site loads them at build time via `src/data/races.ts`.
 
+Schema validation runs in CI: `npm run validate-csv`. Slug rules are summarized in [slug-conventions.md](./slug-conventions.md).
+
 ## Entity relationship
 
 ```mermaid
@@ -23,26 +25,33 @@ erDiagram
 
 	DISTANCE {
 		string slug PK
-		float km
+		int km "tenths of km"
+		string description "optional"
 	}
 
 	RACE {
-		string sortKey
-		string dateTimeDisplay
+		string sortKey "ISO local date-time"
 		string city
 		string state
 		string country
 		string name
 		string typeSlug FK
-		string distanceSlugs "semicolon list"
-		string distancesNote "optional"
-		string calendarSlug "path segment"
+		string distanceSlugs "semicolon list optional"
 		string providerSlug FK
 		string detailUrl
 	}
 ```
 
 - **Provider**: Race organizer; linked from the UI by name (website URL).
-- **Type**: Kind of event (e.g. road, trail); `races.typeSlug` references `types.slug`.
-- **Distance**: Canonical distance options; `races.distanceSlugs` is a `;`-separated list of `distances.slug`. For non-km events (e.g. kids), `distanceSlugs` may be empty and `distancesNote` holds the explanation.
-- **Race**: One scheduled event. `calendarSlug` is the site-specific path segment used for stable IDs (e.g. Iguana blog slug). `detailUrl` is the public page for “View details”.
+- **Type**: Kind of event (e.g. road, trail); `races.typeSlug` references `types.slug` (default in data: `road` when omitted in scraper output; the CSV column should still be set for clarity).
+- **Distance**: Canonical distance options; `races.distanceSlugs` is a `;`-separated list of `distances.slug`. The `km` column stores **integer tenths of a kilometre** (for example `50` → 5 km, `211` → 21.1 km) so values stay integers while preserving half-marathon precision. Optional `description` holds non-numeric context (for example kids categories) instead of putting prose in the race row.
+- **Race**: One scheduled event. `sortKey` is the single source for ordering and display time (ISO `YYYY-MM-DDTHH:MM`). `detailUrl` is the public page for “View details”.
+
+## Column reference
+
+| File | Columns |
+|------|---------|
+| `races.csv` | `sortKey`, `city`, `state`, `country`, `name`, `typeSlug`, `distanceSlugs` (optional), `providerSlug`, `detailUrl` |
+| `providers.csv` | `slug`, `name`, `website` |
+| `types.csv` | `slug`, `type` |
+| `distances.csv` | `slug`, `km`, `description` (optional) |
