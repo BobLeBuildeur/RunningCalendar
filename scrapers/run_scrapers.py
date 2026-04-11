@@ -11,7 +11,7 @@ Examples::
 	python3 run_scrapers.py run iguana
 	python3 run_scrapers.py run iguana yescom
 	python3 run_scrapers.py run all
-	python3 run_scrapers.py run yescom --yescom-year 2026
+	python3 run_scrapers.py run yescom --year 2026
 
 Legacy (same as ``run``)::
 
@@ -83,10 +83,10 @@ def main() -> None:
 		help="Scraper module name(s), or 'all' for every discovered scraper",
 	)
 	p_run.add_argument(
-		"--yescom-year",
+		"--year",
 		type=int,
 		default=2026,
-		help="Forwarded to scrapers that support it (e.g. yescom); others ignore it",
+		help="Calendar year for scrapers that need it (e.g. yescom); others ignore it",
 	)
 
 	args = parser.parse_args(argv[1:])
@@ -97,7 +97,7 @@ def main() -> None:
 		return
 
 	names = _expand_scraper_args(args.scrapers, available)
-	extra = ["--yescom-year", str(args.yescom_year)]
+	extra = ["--year", str(args.year)]
 	sep = "\n---\n"
 	for i, name in enumerate(names):
 		mod = importlib.import_module(f"running_calendar_scrapers.{name}")

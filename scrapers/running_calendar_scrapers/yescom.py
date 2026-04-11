@@ -156,10 +156,10 @@ def format_yescom_csv(races: list[ScrapedRace]) -> str:
 
 
 def run(argv: list[str] | None = None) -> str:
-	"""CLI entry: print races CSV. Supports ``--yescom-year`` (default 2026)."""
+	"""CLI entry: print races CSV. Supports ``--year`` (default 2026)."""
 	import argparse
 
 	p = argparse.ArgumentParser(prog="yescom", add_help=False)
-	p.add_argument("--yescom-year", type=int, default=2026)
+	p.add_argument("--year", type=int, default=2026)
 	args = p.parse_args(argv or [])
-	return format_yescom_csv(scrape_yescom_calendar(args.yescom_year))
+	return format_yescom_csv(scrape_yescom_calendar(args.year))
