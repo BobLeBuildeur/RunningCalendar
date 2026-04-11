@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Badge from './Badge.svelte';
 	import { kmForDistanceSlug, raceUrl, type RaceRow } from '../data/races';
 
 	let { race }: { race: RaceRow } = $props();
@@ -10,9 +11,9 @@
 
 	const locationLine = $derived(`${race.city}, ${race.state}, ${race.country}`);
 
-	type Badge = { label: string };
+	type DistanceBadge = { label: string };
 
-	function distanceBadges(r: RaceRow): Badge[] {
+	function distanceBadges(r: RaceRow): DistanceBadge[] {
 		if (r.distancesNote) return [{ label: r.distancesNote }];
 		const slugs = r.distanceSlugs;
 		if (slugs.length === 0) return [];
@@ -44,7 +45,9 @@
 			{#if badges.length > 0}
 				<ul class="race-card__badges" aria-label="Distances">
 					{#each badges as b (b.label)}
-						<li class="race-card__badge">{b.label}</li>
+						<li class="race-card__badge-slot">
+							<Badge>{b.label}</Badge>
+						</li>
 					{/each}
 				</ul>
 			{/if}
@@ -113,14 +116,8 @@
 		padding: 0;
 	}
 
-	.race-card__badge {
-		padding: var(--space-xs) var(--space-sm);
-		border-radius: var(--radius-lg);
-		font-size: var(--text-caption);
-		font-weight: var(--font-weight-medium);
-		line-height: 1.2;
-		color: var(--color-badge-text);
-		background: var(--color-badge-bg);
+	.race-card__badge-slot {
+		display: inline-block;
 	}
 
 	.race-card__section--main {

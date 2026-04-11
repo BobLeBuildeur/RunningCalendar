@@ -16,10 +16,6 @@
 	--color-warning: #e9c46a;
 	--color-danger: #e76f51;
 
-	/* Badge (distance pills — secondary tint on surface) */
-	--color-badge-bg: color-mix(in srgb, var(--color-secondary) 30%, var(--color-background));
-	--color-badge-text: var(--color-text-primary);
-
 	/* Typography — sizes */
 	--text-display-min: 2rem; /* 32px */
 	--text-display-max: 2.5rem; /* 40px */
