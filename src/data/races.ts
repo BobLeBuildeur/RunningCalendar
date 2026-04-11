@@ -14,8 +14,10 @@ import typesCsv from './types.csv?raw';
 
 export type DistanceRow = {
 	slug: string;
-	/** Distance in kilometres */
+	/** Distance in kilometres (CSV stores integer tenths of a km, e.g. 211 → 21.1) */
 	km: number;
+	/** Optional human context when the row is not a plain numeric distance (e.g. kids categories) */
+	description?: string;
 };
 
 export type TypeRow = {
@@ -31,29 +33,45 @@ export type ProviderRow = {
 };
 
 export type RaceRow = {
-	/** ISO 8601 local date-time string for ordering */
+	/** ISO 8601 local date-time string for ordering and display */
 	sortKey: string;
-	/** Human-readable date and time as shown on the source site */
-	dateTimeDisplay: string;
 	city: string;
 	state: string;
 	country: string;
 	name: string;
 	/** Slug into `types` */
 	typeSlug: string;
-	/** Slugs into `distances`; empty when the event is age-based rather than distance-based */
+	/** Slugs into `distances`; empty when no distances apply */
 	distanceSlugs: string[];
-	/** If set, shown instead of a numeric distance list (e.g. kids events) */
-	distancesNote?: string;
-	/** Path segment after .../calendario-corridas-de-rua/ */
-	calendarSlug: string;
 	/** Slug into `providers` */
 	providerSlug: string;
 	/** Canonical detail page for this race (may differ per provider) */
 	detailUrl: string;
 };
 
-const base = 'https://iguanasports.com.br/blogs/calendario-corridas-de-rua';
+/** Formats `sortKey` (YYYY-MM-DDTHH:MM) for the race card meta line. */
+export function formatRaceDateTimeDisplay(sortKey: string): string {
+	const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(sortKey.trim());
+	if (!m) return sortKey;
+	const [, y, mo, d, hh, mm] = m;
+	const month = Number(mo) - 1;
+	const day = Number(d);
+	const dt = new Date(Date.UTC(Number(y), month, day, Number(hh), Number(mm)));
+	return new Intl.DateTimeFormat('en-GB', {
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false,
+		timeZone: 'UTC',
+	}).format(dt);
+}
+
+/** Public URL for race details (always from `detailUrl` in the data model). */
+export function raceUrl(race: Pick<RaceRow, 'detailUrl'>): string {
+	return race.detailUrl;
+}
 
 /** Minimal RFC 4180-style CSV parser (quoted fields, commas). */
 function parseCsv(text: string): string[][] {
@@ -118,11 +136,12 @@ function parseCsv(text: string): string[][] {
 	return rows;
 }
 
+/** CSV `km` column is integer tenths of a kilometre (e.g. 50 → 5 km, 211 → 21.1 km). */
 function parseKmCell(cell: string): number {
 	const t = cell.trim();
 	const n = Number(t);
-	if (Number.isNaN(n)) throw new Error(`Invalid km value: ${t}`);
-	return n;
+	if (!Number.isFinite(n) || !Number.isInteger(n)) throw new Error(`Invalid km value: ${t}`);
+	return n / 10;
 }
 
 function rowsToDistances(matrix: string[][]): DistanceRow[] {
@@ -134,6 +153,7 @@ function rowsToDistances(matrix: string[][]): DistanceRow[] {
 		return j;
 	};
 	const I = { slug: idx('slug'), km: idx('km') };
+	const descJ = header.indexOf('description');
 
 	const out: DistanceRow[] = [];
 	for (let r = 1; r < matrix.length; r++) {
@@ -141,7 +161,12 @@ function rowsToDistances(matrix: string[][]): DistanceRow[] {
 		if (line.every((c) => !c.trim())) continue;
 		const slug = line[I.slug]?.trim() ?? '';
 		if (!slug) continue;
-		out.push({ slug, km: parseKmCell(line[I.km] ?? '') });
+		const desc = descJ >= 0 ? (line[descJ] ?? '').trim() : '';
+		out.push({
+			slug,
+			km: parseKmCell(line[I.km] ?? ''),
+			...(desc ? { description: desc } : {}),
+		});
 	}
 	return out;
 }
@@ -220,15 +245,12 @@ function rowsToRaces(
 	};
 	const I = {
 		sortKey: idx('sortKey'),
-		dateTimeDisplay: idx('dateTimeDisplay'),
 		city: idx('city'),
 		state: idx('state'),
 		country: idx('country'),
 		name: idx('name'),
 		typeSlug: idx('typeSlug'),
 		distanceSlugs: idx('distanceSlugs'),
-		distancesNote: idx('distancesNote'),
-		calendarSlug: idx('calendarSlug'),
 		providerSlug: idx('providerSlug'),
 		detailUrl: idx('detailUrl'),
 	};
@@ -237,9 +259,7 @@ function rowsToRaces(
 	for (let r = 1; r < matrix.length; r++) {
 		const line = matrix[r];
 		if (line.every((c) => !c.trim())) continue;
-		const note = line[I.distancesNote]?.trim();
-		const typeSlug = (line[I.typeSlug] ?? '').trim();
-		if (!typeSlug) throw new Error(`Missing typeSlug for race row: ${line[I.name] ?? r}`);
+		const typeSlug = (line[I.typeSlug] ?? '').trim() || 'road';
 		if (!validTypeSlugs.has(typeSlug)) throw new Error(`Unknown type slug in races.csv: ${typeSlug}`);
 		const providerSlug = (line[I.providerSlug] ?? '').trim();
 		if (!providerSlug) throw new Error(`Missing providerSlug for race row: ${line[I.name] ?? r}`);
@@ -249,15 +269,12 @@ function rowsToRaces(
 		if (!detailUrl) throw new Error(`Missing detailUrl for race row: ${line[I.name] ?? r}`);
 		out.push({
 			sortKey: line[I.sortKey].trim(),
-			dateTimeDisplay: line[I.dateTimeDisplay].trim(),
 			city: line[I.city].trim(),
 			state: line[I.state].trim(),
 			country: line[I.country].trim(),
 			name: line[I.name].trim(),
 			typeSlug,
 			distanceSlugs: parseDistanceSlugs(line[I.distanceSlugs] ?? '', validDistanceSlugs),
-			distancesNote: note || undefined,
-			calendarSlug: line[I.calendarSlug].trim(),
 			providerSlug,
 			detailUrl,
 		});
@@ -279,6 +296,9 @@ export const providers: ProviderRow[] = rowsToProviders(providersMatrix).sort((a
 );
 
 const distanceKmBySlug = new Map(distances.map((d) => [d.slug, d.km]));
+const distanceDescriptionBySlug = new Map(
+	distances.filter((d) => d.description).map((d) => [d.slug, d.description!]),
+);
 const validDistanceSlugs = new Set(distances.map((d) => d.slug));
 const typeLabelBySlug = new Map(types.map((t) => [t.slug, t.type]));
 const validTypeSlugs = new Set(types.map((t) => t.slug));
@@ -292,10 +312,6 @@ export const races: RaceRow[] = rowsToRaces(
 	validTypeSlugs,
 	validProviderSlugs,
 ).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-
-export function raceUrl(race: Pick<RaceRow, 'calendarSlug' | 'detailUrl'>): string {
-	return race.detailUrl || `${base}/${race.calendarSlug}`;
-}
 
 /** Formats km values for the given distance slugs (order preserved). */
 export function formatKmList(distanceSlugs: string[]): string {
@@ -311,6 +327,16 @@ export function formatKmList(distanceSlugs: string[]): string {
 
 export function kmForDistanceSlug(slug: string): number | undefined {
 	return distanceKmBySlug.get(slug);
+}
+
+/** Badge label: optional distance `description` from `distances.csv`, else "Nkm" from km. */
+export function labelForDistanceSlug(slug: string): string {
+	const desc = distanceDescriptionBySlug.get(slug);
+	if (desc) return desc;
+	const km = distanceKmBySlug.get(slug);
+	if (km === undefined) return slug;
+	const n = km % 1 === 0 ? String(km) : String(km);
+	return `${n}km`;
 }
 
 export function labelForTypeSlug(slug: string): string | undefined {

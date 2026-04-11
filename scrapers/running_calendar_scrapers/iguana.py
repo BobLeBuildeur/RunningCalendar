@@ -52,15 +52,12 @@ _EN_MONTHS = (
 @dataclass(frozen=True)
 class ScrapedRace:
 	sort_key: str
-	date_time_display: str
 	city: str
 	state: str
 	country: str
 	name: str
 	type_slug: str
 	distance_slugs: str
-	distances_note: str
-	calendar_slug: str
 	provider_slug: str
 	detail_url: str
 
@@ -155,18 +152,12 @@ def _distance_slugs_from_labels(
 		if not t:
 			continue
 		if re.search(r"anos|idade|kids|infant", t, re.I):
-			return (
-				"",
-				"Kids (ages 3–13); distances not listed in km on source",
-			)
+			return ("kids-run", "")
 		t_clean = t.upper().replace("KM", "").strip()
 		try:
 			km = float(t_clean.replace(",", "."))
 		except ValueError:
-			return (
-				"",
-				t + "; distances not listed in km on source",
-			)
+			return ("", "")
 		if km not in km_to_slug:
 			raise ValueError(f"No distance slug for km={km} (label {raw!r})")
 		slugs.append(km_to_slug[km])
@@ -204,24 +195,21 @@ def scrape_race(
 	*,
 	km_to_slug: dict[float, str],
 ) -> ScrapedRace:
-	dt, date_display = _parse_event_datetime(html)
+	dt, _ = _parse_event_datetime(html)
 	city, state, country = _parse_location(html)
 	name = _parse_title(html)
 	labels = _parse_distance_labels(html)
-	dist_slugs_str, note = _distance_slugs_from_labels(labels, km_to_slug)
+	dist_slugs_str, _ = _distance_slugs_from_labels(labels, km_to_slug)
 	sort_key = dt.strftime("%Y-%m-%dT%H:%M")
 	detail_url = f"https://iguanasports.com.br{BLOG_PREFIX}{calendar_slug}"
 	return ScrapedRace(
 		sort_key=sort_key,
-		date_time_display=date_display,
 		city=city,
 		state=state,
 		country=country,
 		name=name,
 		type_slug="road",
 		distance_slugs=dist_slugs_str,
-		distances_note=note,
-		calendar_slug=calendar_slug,
 		provider_slug="iguana-sports",
 		detail_url=detail_url,
 	)
@@ -249,15 +237,12 @@ def scrape_iguana_calendar(*, session: requests.Session | None = None) -> list[S
 
 RACES_HEADER = [
 	"sortKey",
-	"dateTimeDisplay",
 	"city",
 	"state",
 	"country",
 	"name",
 	"typeSlug",
 	"distanceSlugs",
-	"distancesNote",
-	"calendarSlug",
 	"providerSlug",
 	"detailUrl",
 ]
@@ -269,15 +254,12 @@ def scraped_to_csv_rows(races: list[ScrapedRace]) -> list[dict[str, str]]:
 		rows.append(
 			{
 				"sortKey": x.sort_key,
-				"dateTimeDisplay": x.date_time_display,
 				"city": x.city,
 				"state": x.state,
 				"country": x.country,
 				"name": x.name,
 				"typeSlug": x.type_slug,
 				"distanceSlugs": x.distance_slugs,
-				"distancesNote": x.distances_note,
-				"calendarSlug": x.calendar_slug,
 				"providerSlug": x.provider_slug,
 				"detailUrl": x.detail_url,
 			}

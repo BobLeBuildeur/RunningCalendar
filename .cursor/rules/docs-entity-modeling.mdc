@@ -1,0 +1,11 @@
+---
+description: Document CSV / entity model changes under docs/
+globs: src/data/**/*.csv
+alwaysApply: false
+---
+
+# Documenting entity modeling changes
+
+Any change to CSV schemas, columns, slug semantics, or relationships between `races`, `distances`, `types`, and `providers` **must** be reflected in `/docs` (at minimum `docs/data-model.md`, and add or update a focused doc such as `docs/slug-conventions.md` when slug rules change).
+
+Do not change entity shape in code or data without updating the documentation in the same change.

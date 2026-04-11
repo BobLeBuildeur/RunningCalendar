@@ -13,12 +13,18 @@ FIXTURE_BY_SLUG = {
 }
 
 
-def _read_iguana_rows():
+def _detail_url_by_fixture_slug():
+	"""Map blog path segment (from detail URL) to races.csv row."""
 	path = repo_root() / "src" / "data" / "races.csv"
+	by_segment: dict[str, dict[str, str]] = {}
 	with path.open(newline="", encoding="utf-8") as f:
 		for row in csv.DictReader(f):
-			if row.get("providerSlug") == "iguana-sports":
-				yield row
+			if row.get("providerSlug") != "iguana-sports":
+				continue
+			url = row.get("detailUrl") or ""
+			seg = url.rstrip("/").rsplit("/", 1)[-1]
+			by_segment[seg] = row
+	return by_segment
 
 
 def test_fixtures_match_races_csv():
@@ -26,18 +32,16 @@ def test_fixtures_match_races_csv():
 		"running_calendar_scrapers.csv_io",
 		fromlist=["load_distance_slugs_by_km"],
 	).load_distance_slugs_by_km()
-	by_slug = {r["calendarSlug"]: r for r in _read_iguana_rows()}
+	by_segment = _detail_url_by_fixture_slug()
 	for slug, fixture_name in FIXTURE_BY_SLUG.items():
-		csv_row = by_slug[slug]
+		csv_row = by_segment[slug]
 		html = (repo_root() / "scrapers" / "tests" / "fixtures" / fixture_name).read_text(encoding="utf-8")
 		parsed = scrape_race(slug, html, km_to_slug=km)
 		assert parsed.sort_key == csv_row["sortKey"]
-		assert parsed.date_time_display == csv_row["dateTimeDisplay"]
 		assert parsed.name == csv_row["name"]
 		assert parsed.city == csv_row["city"]
 		assert parsed.state == csv_row["state"]
 		assert parsed.country == csv_row["country"]
 		assert parsed.type_slug == csv_row["typeSlug"]
 		assert parsed.distance_slugs == csv_row["distanceSlugs"]
-		assert parsed.distances_note == csv_row["distancesNote"]
 		assert parsed.detail_url == csv_row["detailUrl"]

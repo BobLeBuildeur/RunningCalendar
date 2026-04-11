@@ -51,12 +51,6 @@ def _session() -> requests.Session:
 	return s
 
 
-def _slugify(name: str, year: int, seq: int) -> str:
-	base = re.sub(r"[^a-z0-9]+", "-", name.lower())
-	base = re.sub(r"-+", "-", base).strip("-")
-	return f"yescom-{year}-{seq:04d}-{base}"[:120]
-
-
 def _parse_onclick_url(onclick: str) -> str | None:
 	m = re.search(r"window\.open\(\s*['\"]([^'\"]+)['\"]", onclick)
 	return m.group(1).strip() if m else None
@@ -116,11 +110,10 @@ def scrape_yescom_calendar(year: int, *, session: requests.Session | None = None
 		if not name:
 			continue
 		try:
-			dt, date_display = _parse_date_cell(date_cell, year)
+			dt, _ = _parse_date_cell(date_cell, year)
 		except ValueError:
 			continue
 		sort_key = dt.strftime("%Y-%m-%dT%H:%M")
-		calendar_slug = _slugify(name, year, idx)
 		# Split "São Paulo-SP" style if present
 		city = place
 		state = ""
@@ -133,15 +126,12 @@ def scrape_yescom_calendar(year: int, *, session: requests.Session | None = None
 		out.append(
 			ScrapedRace(
 				sort_key=sort_key,
-				date_time_display=date_display,
 				city=city,
 				state=state,
 				country=country,
 				name=name,
 				type_slug="road",
 				distance_slugs="",
-				distances_note="Distances not listed on Yescom calendar source",
-				calendar_slug=calendar_slug,
 				provider_slug="yescom",
 				detail_url=url,
 			)

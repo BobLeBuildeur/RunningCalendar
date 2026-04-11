@@ -1,31 +1,30 @@
 <script lang="ts">
 	import Badge from './Badge.svelte';
-	import { kmForDistanceSlug, providerForSlug, raceUrl, type RaceRow } from '../data/races';
+	import {
+		formatRaceDateTimeDisplay,
+		labelForDistanceSlug,
+		providerForSlug,
+		raceUrl,
+		type RaceRow,
+	} from '../data/races';
 
 	let { race }: { race: RaceRow } = $props();
 
 	const href = $derived(raceUrl(race));
 	const provider = $derived(providerForSlug(race.providerSlug));
 
-	/** Match mock: "26 Apr 2026 • 06:00" from CSV "26 Apr 2026, 06:00" */
-	const dateTimeLine = $derived(race.dateTimeDisplay.replace(/,\s*/, ' • '));
+	const dateTimeLine = $derived(formatRaceDateTimeDisplay(race.sortKey).replace(/,\s*/, ' • '));
 
 	const locationLine = $derived(`${race.city}, ${race.state}, ${race.country}`);
 
 	type DistanceBadge = { label: string };
 
 	function distanceBadges(r: RaceRow): DistanceBadge[] {
-		if (r.distancesNote) return [{ label: r.distancesNote }];
 		const slugs = r.distanceSlugs;
 		if (slugs.length === 0) return [];
 
 		const maxVisible = 3;
-		const labels = slugs.map((slug) => {
-			const km = kmForDistanceSlug(slug);
-			if (km === undefined) return slug;
-			const n = km % 1 === 0 ? String(km) : String(km);
-			return `${n}km`;
-		});
+		const labels = slugs.map((slug) => labelForDistanceSlug(slug));
 
 		if (labels.length <= maxVisible) return labels.map((label) => ({ label }));
 

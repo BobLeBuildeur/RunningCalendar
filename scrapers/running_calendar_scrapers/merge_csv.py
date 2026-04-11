@@ -31,12 +31,12 @@ def normalize_detail_url_for_key(url: str) -> str:
 
 
 def _slug_order(distances_path: Path) -> dict[str, float]:
-	"""slug -> km for sorting distanceSlugs."""
+	"""slug -> km for sorting distanceSlugs (CSV km column is integer tenths of a km)."""
 	order: dict[str, float] = {}
 	with distances_path.open(newline="", encoding="utf-8") as f:
 		for row in csv.DictReader(f):
 			slug = row["slug"].strip()
-			order[slug] = float(row["km"].strip())
+			order[slug] = int(row["km"].strip()) / 10.0
 	return order
 
 
@@ -57,24 +57,20 @@ def normalize_race_row(
 
 	ts = out["typeSlug"]
 	if ts not in valid_types:
-		return {}, [f"skip: unknown typeSlug {ts!r} for calendarSlug={out.get('calendarSlug', '')!r}"]
+		return {}, [f"skip: unknown typeSlug {ts!r} for detailUrl={out.get('detailUrl', '')!r}"]
 
 	ps = out["providerSlug"]
 	if ps not in valid_providers:
-		return {}, [f"skip: unknown providerSlug {ps!r} for calendarSlug={out.get('calendarSlug', '')!r}"]
+		return {}, [f"skip: unknown providerSlug {ps!r} for detailUrl={out.get('detailUrl', '')!r}"]
 
 	# distanceSlugs: validate and sort by km
 	raw_slugs = [s.strip() for s in out["distanceSlugs"].split(";") if s.strip()]
 	bad = [s for s in raw_slugs if s not in valid_dist]
 	if bad:
-		return {}, [f"skip: unknown distance slug(s) {bad} for calendarSlug={out['calendarSlug']!r}"]
+		return {}, [f"skip: unknown distance slug(s) {bad} for detailUrl={out['detailUrl']!r}"]
 
 	unique_sorted = sorted(set(raw_slugs), key=lambda s: slug_to_km.get(s, 0.0))
 	out["distanceSlugs"] = ";".join(unique_sorted)
-
-	# distancesNote: empty means key absent in CSV writer as ""
-	note = out["distancesNote"].strip()
-	out["distancesNote"] = note
 
 	# Name: collapse internal whitespace
 	out["name"] = re.sub(r"\s+", " ", out["name"]).strip()
@@ -82,17 +78,13 @@ def normalize_race_row(
 	return out, warnings
 
 
-def _existing_keys(rows: list[dict[str, str]]) -> tuple[set[str], set[str]]:
-	slugs: set[str] = set()
+def _existing_urls(rows: list[dict[str, str]]) -> set[str]:
 	urls: set[str] = set()
 	for r in rows:
-		cs = (r.get("calendarSlug") or "").strip()
-		if cs:
-			slugs.add(cs)
 		du = normalize_detail_url_for_key(r.get("detailUrl") or "")
 		if du:
 			urls.add(du)
-	return slugs, urls
+	return urls
 
 
 def merge_new_races(
@@ -118,7 +110,7 @@ def merge_new_races(
 	with prov_path.open(encoding="utf-8", newline="") as f:
 		valid_providers = {r["slug"].strip() for r in csv.DictReader(f) if r.get("slug")}
 
-	existing_slugs, existing_urls = _existing_keys(existing_rows)
+	existing_urls = _existing_urls(existing_rows)
 	combined = [dict(r) for r in existing_rows]
 	duplicate_msgs: list[str] = []
 	skip_msgs: list[str] = []
@@ -136,14 +128,8 @@ def merge_new_races(
 		if not norm:
 			continue
 
-		cs = norm["calendarSlug"]
 		du_key = normalize_detail_url_for_key(norm["detailUrl"])
 
-		if cs in existing_slugs:
-			duplicate_msgs.append(
-				f"duplicate (calendarSlug): {cs!r} — not merged",
-			)
-			continue
 		if du_key and du_key in existing_urls:
 			duplicate_msgs.append(
 				f"duplicate (detailUrl): {norm['detailUrl']!r} — not merged",
@@ -151,7 +137,6 @@ def merge_new_races(
 			continue
 
 		combined.append(norm)
-		existing_slugs.add(cs)
 		if du_key:
 			existing_urls.add(du_key)
 

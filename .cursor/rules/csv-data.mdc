@@ -1,0 +1,11 @@
+---
+description: CSV entity data under src/data must stay normalized and non-duplicated
+globs: src/data/**/*.csv
+alwaysApply: false
+---
+
+# CSV data (RunningCalendar)
+
+- **Single source of truth**: Each fact belongs in one place. Do not duplicate the same information across columns (for example, do not store a separate display date when `sortKey` already holds the ISO date-time).
+- **Normalized references**: Use slugs to reference `types`, `distances`, and `providers`; never repeat full labels or URLs where a slug FK suffices (except where the schema explicitly stores human-readable text, such as race `name` or city fields).
+- **No stray columns**: Only the columns documented in `docs/data-model.md` (and enforced by `npm run validate-csv`) may appear. If you need a new field, update the docs, validation script, loaders, and scrapers together.
