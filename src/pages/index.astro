@@ -1,7 +1,7 @@
 ---
 import RaceItem from '../components/RaceItem.svelte';
 import { races } from '../data/races';
-import '../styles/tokens.css';
+import '../styles/global.css';
 ---
 
 <html lang="en">
@@ -10,6 +10,12 @@ import '../styles/tokens.css';
 		<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap"
+			rel="stylesheet"
+		/>
 		<title>RunningCalendar</title>
 		<style>
 			.race-list {
@@ -23,11 +29,13 @@ import '../styles/tokens.css';
 		</style>
 	</head>
 	<body>
-		<h1>RunningCalendar</h1>
-		<p>
-			Initial race list from <a href="https://iguanasports.com.br">iguanasports.com.br</a> (calendar
-			<a href="https://iguanasports.com.br/blogs/calendario-corridas-de-rua">calendário de corridas</a>).
-		</p>
+		<header class="page-header">
+			<h1 class="page-header__title">RunningCalendar</h1>
+			<p class="page-header__subtitle">
+				Initial race list from <a href="https://iguanasports.com.br">iguanasports.com.br</a> (calendar
+				<a href="https://iguanasports.com.br/blogs/calendario-corridas-de-rua">calendário de corridas</a>).
+			</p>
+		</header>
 
 		<ul class="race-list">
 			{races.map((r) => <RaceItem race={r} />)}

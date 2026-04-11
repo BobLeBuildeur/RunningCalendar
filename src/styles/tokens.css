@@ -1,8 +1,15 @@
 /**
- * Design tokens — maps to names in /design/2-tokens.md and layout constants in /design/3-grid.md.
+ * Design tokens — maps to /design/2-tokens.md, /design/3-grid.md, and /design/4-typography.md.
  * Use these custom properties in UI code instead of arbitrary colors or spacing.
  */
 :root {
+	/* Typography — font family (Manrope: design/4-typography.md) */
+	--font-family-sans: 'Manrope', system-ui, sans-serif;
+
+	/* Typography — line height */
+	--line-height-tight: 1.2;
+	--line-height-body: 1.5;
+
 	/* Colors */
 	--color-primary: #0b6e4f;
 	--color-primary-hover: #09543d;
