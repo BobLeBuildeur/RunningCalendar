@@ -2,8 +2,25 @@
  * Race listings sourced from https://iguanasports.com.br and
  * https://iguanasports.com.br/blogs/calendario-corridas-de-rua (as of bootstrap).
  * Link slugs match paths under /blogs/calendario-corridas-de-rua/ on that site.
+ *
+ * Distances are normalized in `distances.csv` (slug + km); races reference them by slug.
+ * Race kinds are normalized in `types.csv` (slug + type label); races reference them via `typeSlug`.
  */
+import distancesCsv from './distances.csv?raw';
 import racesCsv from './races.csv?raw';
+import typesCsv from './types.csv?raw';
+
+export type DistanceRow = {
+	slug: string;
+	/** Distance in kilometres */
+	km: number;
+};
+
+export type TypeRow = {
+	slug: string;
+	/** Display label (e.g. Road, Trail) */
+	type: string;
+};
 
 export type RaceRow = {
 	/** ISO 8601 local date-time string for ordering */
@@ -14,8 +31,10 @@ export type RaceRow = {
 	state: string;
 	country: string;
 	name: string;
-	/** Distances in kilometres; empty when the event is age-based rather than distance-based */
-	distancesKm: number[];
+	/** Slug into `types` */
+	typeSlug: string;
+	/** Slugs into `distances`; empty when the event is age-based rather than distance-based */
+	distanceSlugs: string[];
 	/** If set, shown instead of a numeric distance list (e.g. kids events) */
 	distancesNote?: string;
 	/** Path segment after .../calendario-corridas-de-rua/ */
@@ -87,7 +106,35 @@ function parseCsv(text: string): string[][] {
 	return rows;
 }
 
-function parseDistancesKm(cell: string): number[] {
+function parseKmCell(cell: string): number {
+	const t = cell.trim();
+	const n = Number(t);
+	if (Number.isNaN(n)) throw new Error(`Invalid km value: ${t}`);
+	return n;
+}
+
+function rowsToDistances(matrix: string[][]): DistanceRow[] {
+	if (matrix.length < 2) return [];
+	const header = matrix[0].map((h) => h.trim());
+	const idx = (name: string) => {
+		const j = header.indexOf(name);
+		if (j === -1) throw new Error(`Missing CSV column: ${name}`);
+		return j;
+	};
+	const I = { slug: idx('slug'), km: idx('km') };
+
+	const out: DistanceRow[] = [];
+	for (let r = 1; r < matrix.length; r++) {
+		const line = matrix[r];
+		if (line.every((c) => !c.trim())) continue;
+		const slug = line[I.slug]?.trim() ?? '';
+		if (!slug) continue;
+		out.push({ slug, km: parseKmCell(line[I.km] ?? '') });
+	}
+	return out;
+}
+
+function parseDistanceSlugs(cell: string, validSlugs: ReadonlySet<string>): string[] {
 	const t = cell.trim();
 	if (!t) return [];
 	return t
@@ -95,13 +142,37 @@ function parseDistancesKm(cell: string): number[] {
 		.map((s) => s.trim())
 		.filter(Boolean)
 		.map((s) => {
-			const n = Number(s);
-			if (Number.isNaN(n)) throw new Error(`Invalid km value: ${s}`);
-			return n;
+			if (!validSlugs.has(s)) throw new Error(`Unknown distance slug in races.csv: ${s}`);
+			return s;
 		});
 }
 
-function rowsToRaces(matrix: string[][]): RaceRow[] {
+function rowsToTypes(matrix: string[][]): TypeRow[] {
+	if (matrix.length < 2) return [];
+	const header = matrix[0].map((h) => h.trim());
+	const idx = (name: string) => {
+		const j = header.indexOf(name);
+		if (j === -1) throw new Error(`Missing CSV column: ${name}`);
+		return j;
+	};
+	const I = { slug: idx('slug'), type: idx('type') };
+
+	const out: TypeRow[] = [];
+	for (let r = 1; r < matrix.length; r++) {
+		const line = matrix[r];
+		if (line.every((c) => !c.trim())) continue;
+		const slug = line[I.slug]?.trim() ?? '';
+		if (!slug) continue;
+		out.push({ slug, type: (line[I.type] ?? '').trim() });
+	}
+	return out;
+}
+
+function rowsToRaces(
+	matrix: string[][],
+	validDistanceSlugs: ReadonlySet<string>,
+	validTypeSlugs: ReadonlySet<string>,
+): RaceRow[] {
 	if (matrix.length < 2) return [];
 	const header = matrix[0].map((h) => h.trim());
 	const idx = (name: string) => {
@@ -116,7 +187,8 @@ function rowsToRaces(matrix: string[][]): RaceRow[] {
 		state: idx('state'),
 		country: idx('country'),
 		name: idx('name'),
-		distancesKm: idx('distancesKm'),
+		typeSlug: idx('typeSlug'),
+		distanceSlugs: idx('distanceSlugs'),
 		distancesNote: idx('distancesNote'),
 		calendarSlug: idx('calendarSlug'),
 	};
@@ -126,6 +198,9 @@ function rowsToRaces(matrix: string[][]): RaceRow[] {
 		const line = matrix[r];
 		if (line.every((c) => !c.trim())) continue;
 		const note = line[I.distancesNote]?.trim();
+		const typeSlug = (line[I.typeSlug] ?? '').trim();
+		if (!typeSlug) throw new Error(`Missing typeSlug for race row: ${line[I.name] ?? r}`);
+		if (!validTypeSlugs.has(typeSlug)) throw new Error(`Unknown type slug in races.csv: ${typeSlug}`);
 		out.push({
 			sortKey: line[I.sortKey].trim(),
 			dateTimeDisplay: line[I.dateTimeDisplay].trim(),
@@ -133,7 +208,8 @@ function rowsToRaces(matrix: string[][]): RaceRow[] {
 			state: line[I.state].trim(),
 			country: line[I.country].trim(),
 			name: line[I.name].trim(),
-			distancesKm: parseDistancesKm(line[I.distancesKm] ?? ''),
+			typeSlug,
+			distanceSlugs: parseDistanceSlugs(line[I.distanceSlugs] ?? '', validDistanceSlugs),
 			distancesNote: note || undefined,
 			calendarSlug: line[I.calendarSlug].trim(),
 		});
@@ -141,16 +217,44 @@ function rowsToRaces(matrix: string[][]): RaceRow[] {
 	return out;
 }
 
-const parsed = parseCsv(racesCsv.trimEnd());
-export const races: RaceRow[] = rowsToRaces(parsed).sort((a, b) =>
-	a.sortKey.localeCompare(b.sortKey),
+const distancesMatrix = parseCsv(distancesCsv.trimEnd());
+export const distances: DistanceRow[] = rowsToDistances(distancesMatrix).sort((a, b) =>
+	a.slug.localeCompare(b.slug),
+);
+
+const typesMatrix = parseCsv(typesCsv.trimEnd());
+export const types: TypeRow[] = rowsToTypes(typesMatrix).sort((a, b) => a.slug.localeCompare(b.slug));
+
+const distanceKmBySlug = new Map(distances.map((d) => [d.slug, d.km]));
+const validDistanceSlugs = new Set(distances.map((d) => d.slug));
+const typeLabelBySlug = new Map(types.map((t) => [t.slug, t.type]));
+const validTypeSlugs = new Set(types.map((t) => t.slug));
+
+const racesMatrix = parseCsv(racesCsv.trimEnd());
+export const races: RaceRow[] = rowsToRaces(racesMatrix, validDistanceSlugs, validTypeSlugs).sort(
+	(a, b) => a.sortKey.localeCompare(b.sortKey),
 );
 
 export function raceUrl(slug: string): string {
 	return `${base}/${slug}`;
 }
 
-export function formatKmList(km: number[]): string {
-	if (km.length === 0) return '';
-	return km.map((n) => String(n)).join(', ');
+/** Formats km values for the given distance slugs (order preserved). */
+export function formatKmList(distanceSlugs: string[]): string {
+	if (distanceSlugs.length === 0) return '';
+	return distanceSlugs
+		.map((slug) => {
+			const km = distanceKmBySlug.get(slug);
+			if (km === undefined) throw new Error(`Unknown distance slug: ${slug}`);
+			return String(km);
+		})
+		.join(', ');
+}
+
+export function kmForDistanceSlug(slug: string): number | undefined {
+	return distanceKmBySlug.get(slug);
+}
+
+export function labelForTypeSlug(slug: string): string | undefined {
+	return typeLabelBySlug.get(slug);
 }

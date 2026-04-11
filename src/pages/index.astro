@@ -1,9 +1,15 @@
 ---
-import { races, raceUrl, formatKmList, type RaceRow } from '../data/races';
+import {
+	labelForTypeSlug,
+	races,
+	raceUrl,
+	formatKmList,
+	type RaceRow,
+} from '../data/races';
 
 function distancesCell(r: RaceRow): string {
 	if (r.distancesNote) return r.distancesNote;
-	const s = formatKmList(r.distancesKm);
+	const s = formatKmList(r.distanceSlugs);
 	return s ? `${s} km` : '—';
 }
 ---
@@ -29,6 +35,7 @@ function distancesCell(r: RaceRow): string {
 					<th scope="col">Date and time</th>
 					<th scope="col">Location</th>
 					<th scope="col">Name</th>
+					<th scope="col">Type</th>
 					<th scope="col">Distances (km)</th>
 					<th scope="col">Link</th>
 				</tr>
@@ -42,6 +49,7 @@ function distancesCell(r: RaceRow): string {
 								{r.city}, {r.state}, {r.country}
 							</td>
 							<td>{r.name}</td>
+							<td>{labelForTypeSlug(r.typeSlug) ?? r.typeSlug}</td>
 							<td>{distancesCell(r)}</td>
 							<td>
 								<a href={raceUrl(r.calendarSlug)}>{raceUrl(r.calendarSlug)}</a>
