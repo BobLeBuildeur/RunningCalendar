@@ -1,6 +1,7 @@
 ---
 import RaceItem from '../components/RaceItem.svelte';
 import { races } from '../data/races';
+import '../styles/tokens.css';
 ---
 
 <html lang="en">
@@ -12,8 +13,12 @@ import { races } from '../data/races';
 		<title>RunningCalendar</title>
 		<style>
 			.race-list {
+				display: flex;
+				flex-direction: column;
+				gap: var(--space-md);
 				margin: 0;
 				padding: 0;
+				max-width: var(--container-max-width);
 			}
 		</style>
 	</head>
