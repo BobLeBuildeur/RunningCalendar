@@ -1,17 +1,6 @@
 ---
-import {
-	labelForTypeSlug,
-	races,
-	raceUrl,
-	formatKmList,
-	type RaceRow,
-} from '../data/races';
-
-function distancesCell(r: RaceRow): string {
-	if (r.distancesNote) return r.distancesNote;
-	const s = formatKmList(r.distanceSlugs);
-	return s ? `${s} km` : '—';
-}
+import RaceItem from '../components/RaceItem.svelte';
+import { races } from '../data/races';
 ---
 
 <html lang="en">
@@ -21,6 +10,12 @@ function distancesCell(r: RaceRow): string {
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />
 		<title>RunningCalendar</title>
+		<style>
+			.race-list {
+				margin: 0;
+				padding: 0;
+			}
+		</style>
 	</head>
 	<body>
 		<h1>RunningCalendar</h1>
@@ -29,35 +24,8 @@ function distancesCell(r: RaceRow): string {
 			<a href="https://iguanasports.com.br/blogs/calendario-corridas-de-rua">calendário de corridas</a>).
 		</p>
 
-		<table border="1" cellpadding="8" cellspacing="0">
-			<thead>
-				<tr>
-					<th scope="col">Date and time</th>
-					<th scope="col">Location</th>
-					<th scope="col">Name</th>
-					<th scope="col">Type</th>
-					<th scope="col">Distances (km)</th>
-					<th scope="col">Link</th>
-				</tr>
-			</thead>
-			<tbody>
-				{
-					races.map((r) => (
-						<tr>
-							<td>{r.dateTimeDisplay}</td>
-							<td>
-								{r.city}, {r.state}, {r.country}
-							</td>
-							<td>{r.name}</td>
-							<td>{labelForTypeSlug(r.typeSlug) ?? r.typeSlug}</td>
-							<td>{distancesCell(r)}</td>
-							<td>
-								<a href={raceUrl(r.calendarSlug)}>{raceUrl(r.calendarSlug)}</a>
-							</td>
-						</tr>
-					))
-				}
-			</tbody>
-		</table>
+		<ul class="race-list">
+			{races.map((r) => <RaceItem race={r} />)}
+		</ul>
 	</body>
 </html>
