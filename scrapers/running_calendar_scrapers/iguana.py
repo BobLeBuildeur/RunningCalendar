@@ -297,3 +297,12 @@ def format_races_csv(races: list[ScrapedRace]) -> str:
 def parse_races_csv(text: str) -> list[dict[str, str]]:
 	reader = csv.DictReader(io.StringIO(text))
 	return [dict(row) for row in reader]
+
+
+def run(argv: list[str] | None = None) -> str:
+	"""CLI entry: print races CSV. Ignores unknown flags (e.g. other scrapers' options)."""
+	import argparse
+
+	p = argparse.ArgumentParser(prog="iguana", add_help=False)
+	p.parse_known_args(argv or [])
+	return format_races_csv(scrape_iguana_calendar())

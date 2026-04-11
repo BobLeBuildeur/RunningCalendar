@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import csv
-import io
 import re
 from datetime import datetime
 
@@ -152,9 +150,16 @@ def scrape_yescom_calendar(year: int, *, session: requests.Session | None = None
 
 
 def format_yescom_csv(races: list[ScrapedRace]) -> str:
-	buf = io.StringIO()
-	writer = csv.DictWriter(buf, fieldnames=RACES_HEADER, lineterminator="\n")
-	writer.writeheader()
-	for row in scraped_to_csv_rows(races):
-		writer.writerow(row)
-	return buf.getvalue()
+	from running_calendar_scrapers.iguana import format_races_csv
+
+	return format_races_csv(races)
+
+
+def run(argv: list[str] | None = None) -> str:
+	"""CLI entry: print races CSV. Supports ``--yescom-year`` (default 2026)."""
+	import argparse
+
+	p = argparse.ArgumentParser(prog="yescom", add_help=False)
+	p.add_argument("--yescom-year", type=int, default=2026)
+	args = p.parse_args(argv or [])
+	return format_yescom_csv(scrape_yescom_calendar(args.yescom_year))

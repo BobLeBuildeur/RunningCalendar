@@ -25,8 +25,8 @@ jobs:
 
       - name: Run Iguana scraper (stdout)
         working-directory: scrapers
-        run: python3 run_scrapers.py iguana | head -n 5
+        run: python3 run_scrapers.py run iguana | head -n 5
 
       - name: Run Yescom scraper (stdout)
         working-directory: scrapers
-        run: python3 run_scrapers.py yescom --yescom-year 2026 | head -n 5
+        run: python3 run_scrapers.py run yescom --yescom-year 2026 | head -n 5
