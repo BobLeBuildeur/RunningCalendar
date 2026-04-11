@@ -1,0 +1,25 @@
+---
+description: Capture a screenshot after UI changes for visual inspection
+globs:
+  - "**/*.astro"
+  - "**/*.css"
+  - "**/*.scss"
+  - "**/*.svelte"
+---
+
+# UI visual inspection (RunningCalendar)
+
+When your change **visibly affects** layout, typography, colors, spacing, or components (anything a user would see in the browser), **generate at least one screenshot** of the affected view before considering the task done.
+
+## How to capture
+
+1. Run a production build and preview: `npm run build` then `npm run preview -- --host 127.0.0.1 --port 4321` (see `AGENTS.md` for the site base path).
+2. Open the relevant URL (e.g. `http://127.0.0.1:4321/RunningCalendar/` for the home page).
+3. Save a PNG under **`artifacts/ui/`** with a descriptive name (e.g. `home-layout-grid.png`). Create the directory if needed.
+4. In your summary to the user, **embed or reference** the screenshot path so they can inspect the result.
+
+If headless Chrome is available, you may use it to capture without a manual browser step. If preview cannot run in the environment, state that limitation and describe what was verified instead.
+
+## Scope
+
+This applies to visual/UI edits. Pure data, config, or non-rendering logic changes do not require a screenshot unless they indirectly affect displayed output.
