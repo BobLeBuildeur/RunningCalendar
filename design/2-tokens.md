@@ -24,6 +24,8 @@ These tokens are the single source of truth for color, type, spacing, radii, and
 
 ## Typography
 
+**Font family, heading hierarchy, colors per level, and component patterns** are defined in **`design/4-typography.md`**. Implementation uses Manrope (`font.family.sans`) via `src/styles/tokens.css`.
+
 | Token | Size | Weight | Usage |
 | --- | --- | --- | --- |
 | `text.display` | 32–40px | Bold | Page headers |

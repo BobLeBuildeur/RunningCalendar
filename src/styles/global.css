@@ -1,6 +1,6 @@
 @import './tokens.css';
 
-/* Light reset */
+/* Light reset — consistent box model and baseline typography */
 *,
 *::before,
 *::after {
@@ -14,10 +14,14 @@ html {
 body {
 	margin: 0;
 	min-height: 100vh;
+	font-family: var(--font-family-sans);
 	font-size: var(--text-body);
-	line-height: 1.5;
+	font-weight: var(--font-weight-regular);
+	line-height: var(--line-height-body);
 	color: var(--color-text-primary);
 	background-color: var(--color-background);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 img,
@@ -42,6 +46,30 @@ a {
 
 a:hover {
 	color: var(--color-primary-hover);
+}
+
+/* Page header — title + subtitle (design/4-typography.md) */
+.page-header {
+	margin: 0 0 var(--space-xl);
+}
+
+.page-header__title {
+	margin: 0;
+	font-family: var(--font-family-sans);
+	font-size: var(--text-display);
+	font-weight: var(--font-weight-bold);
+	line-height: var(--line-height-tight);
+	color: var(--color-text-primary);
+}
+
+.page-header__subtitle {
+	margin: var(--space-sm) 0 0;
+	font-family: var(--font-family-sans);
+	font-size: var(--text-body);
+	font-weight: var(--font-weight-regular);
+	line-height: var(--line-height-body);
+	color: var(--color-text-secondary);
+	max-width: 65ch;
 }
 
 /**
