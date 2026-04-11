@@ -10,6 +10,10 @@
 	--line-height-tight: 1.2;
 	--line-height-body: 1.5;
 
+	/* Layout — page inset (horizontal padding vs viewport; design/3-grid.md) */
+	--layout-page-inset: var(--space-md);
+	--grid-gutter: var(--space-md);
+
 	/* Colors */
 	--color-primary: #0b6e4f;
 	--color-primary-hover: #09543d;
@@ -61,4 +65,16 @@
 	--container-max-width: 1200px;
 	--breakpoint-tablet: 640px;
 	--breakpoint-desktop: 1024px;
+}
+
+@media (min-width: 640px) {
+	:root {
+		--layout-page-inset: var(--space-lg);
+	}
+}
+
+@media (min-width: 1024px) {
+	:root {
+		--layout-page-inset: var(--space-xl);
+	}
 }

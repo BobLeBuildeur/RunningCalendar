@@ -24,21 +24,25 @@ import '../styles/global.css';
 				gap: var(--space-md);
 				margin: 0;
 				padding: 0;
-				max-width: var(--container-max-width);
+				list-style: none;
 			}
 		</style>
 	</head>
-	<body>
-		<header class="page-header">
-			<h1 class="page-header__title">RunningCalendar</h1>
-			<p class="page-header__subtitle">
-				Initial race list from <a href="https://iguanasports.com.br">iguanasports.com.br</a> (calendar
-				<a href="https://iguanasports.com.br/blogs/calendario-corridas-de-rua">calendário de corridas</a>).
-			</p>
-		</header>
+	<body class="layout">
+		<div class="layout__container">
+			<div class="grid">
+				<header class="grid__col grid__col--span-12 page-header">
+					<h1 class="page-header__title">RunningCalendar</h1>
+					<p class="page-header__subtitle">
+						Initial race list from <a href="https://iguanasports.com.br">iguanasports.com.br</a> (calendar
+						<a href="https://iguanasports.com.br/blogs/calendario-corridas-de-rua">calendário de corridas</a>).
+					</p>
+				</header>
 
-		<ul class="race-list">
-			{races.map((r) => <RaceItem race={r} />)}
-		</ul>
+				<ul class="race-list grid__col grid__col--span-12">
+					{races.map((r) => <RaceItem race={r} />)}
+				</ul>
+			</div>
+		</div>
 	</body>
 </html>

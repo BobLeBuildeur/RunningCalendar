@@ -1,3 +1,6 @@
+# agent-generated UI screenshots (local inspection)
+artifacts/
+
 # build output
 dist/
 # generated types
