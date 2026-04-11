@@ -47,6 +47,10 @@ These tokens are the single source of truth for color, type, spacing, radii, and
 | `space.lg` | 24px | Sections |
 | `space.xl` | 32px | Large separation |
 
+**Page inset:** Horizontal padding from the viewport to the content block is implemented as **`layout.page.inset`** → CSS `--layout-page-inset` (responsive: `space.md` → `space.lg` → `space.xl` at tablet/desktop breakpoints). See `design/3-grid.md`.
+
+**Grid gutter:** **`grid.gutter`** → `--grid-gutter` (defaults to `space.md`) for gaps between 12-column grid tracks.
+
 ---
 
 ## Radius
