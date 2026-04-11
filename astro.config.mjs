@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import svelte from '@astrojs/svelte';
 
 // https://astro.build/config
 // GitHub project pages: site origin + repo name as path segment
@@ -7,4 +8,5 @@ import { defineConfig } from 'astro/config';
 export default defineConfig({
 	site: 'https://boblebuildeur.github.io',
 	base: '/RunningCalendar/',
+	integrations: [svelte()],
 });
