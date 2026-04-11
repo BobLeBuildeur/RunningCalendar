@@ -30,3 +30,7 @@ jobs:
       - name: Run Yescom scraper (stdout)
         working-directory: scrapers
         run: python3 run_scrapers.py run yescom --year 2026 | head -n 5
+
+      - name: Merge dry-run (no new rows expected)
+        working-directory: scrapers
+        run: python3 run_scrapers.py run iguana --save-to
