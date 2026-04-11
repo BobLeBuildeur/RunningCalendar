@@ -1,10 +1,11 @@
 <script lang="ts">
 	import Badge from './Badge.svelte';
-	import { kmForDistanceSlug, raceUrl, type RaceRow } from '../data/races';
+	import { kmForDistanceSlug, providerForSlug, raceUrl, type RaceRow } from '../data/races';
 
 	let { race }: { race: RaceRow } = $props();
 
-	const href = $derived(raceUrl(race.calendarSlug));
+	const href = $derived(raceUrl(race));
+	const provider = $derived(providerForSlug(race.providerSlug));
 
 	/** Match mock: "26 Apr 2026 • 06:00" from CSV "26 Apr 2026, 06:00" */
 	const dateTimeLine = $derived(race.dateTimeDisplay.replace(/,\s*/, ' • '));
@@ -55,6 +56,11 @@
 
 		<div class="race-card__section race-card__section--main">
 			<h2 class="race-card__title">{race.name}</h2>
+			{#if provider}
+				<p class="race-card__provider">
+					<a class="race-card__provider-link" href={provider.website}>{provider.name}</a>
+				</p>
+			{/if}
 			<p class="race-card__location">{locationLine}</p>
 		</div>
 
@@ -132,6 +138,30 @@
 		font-weight: var(--font-weight-bold);
 		color: var(--color-text-primary);
 		line-height: 1.25;
+	}
+
+	.race-card__provider {
+		margin: 0;
+		font-size: var(--text-caption);
+		font-weight: var(--font-weight-regular);
+		color: var(--color-text-secondary);
+		line-height: 1.4;
+		opacity: 0.85;
+	}
+
+	.race-card__provider-link {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.race-card__provider-link:hover {
+		text-decoration: underline;
+	}
+
+	.race-card__provider-link:focus-visible {
+		outline: 2px solid var(--color-primary);
+		outline-offset: 2px;
+		border-radius: var(--radius-sm);
 	}
 
 	.race-card__location {
