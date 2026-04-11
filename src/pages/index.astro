@@ -3,7 +3,7 @@ import { races, raceUrl, formatKmList, type RaceRow } from '../data/races';
 
 function distancesCell(r: RaceRow): string {
 	if (r.distancesNote) return r.distancesNote;
-	const s = formatKmList(r.distancesKm);
+	const s = formatKmList(r.distanceSlugs);
 	return s ? `${s} km` : '—';
 }
 ---
