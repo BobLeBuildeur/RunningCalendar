@@ -1,8 +1,12 @@
 /**
- * Design tokens — maps to names in /design/2-tokens.md and layout constants in /design/3-grid.md.
+ * Design tokens — maps to /design/2-tokens.md and layout in /design/3-grid.md.
  * Use these custom properties in UI code instead of arbitrary colors or spacing.
  */
 :root {
+	/* Layout — page inset (horizontal padding vs viewport; design/3-grid.md) */
+	--layout-page-inset: var(--space-md);
+	--grid-gutter: var(--space-md);
+
 	/* Colors */
 	--color-primary: #0b6e4f;
 	--color-primary-hover: #09543d;
@@ -54,4 +58,16 @@
 	--container-max-width: 1200px;
 	--breakpoint-tablet: 640px;
 	--breakpoint-desktop: 1024px;
+}
+
+@media (min-width: 640px) {
+	:root {
+		--layout-page-inset: var(--space-lg);
+	}
+}
+
+@media (min-width: 1024px) {
+	:root {
+		--layout-page-inset: var(--space-xl);
+	}
 }
