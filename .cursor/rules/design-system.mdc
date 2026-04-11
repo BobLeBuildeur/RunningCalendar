@@ -1,0 +1,17 @@
+---
+description: Consult the design folder and design tokens when changing UI
+globs:
+  - "**/*.astro"
+  - "**/*.css"
+  - "**/*.scss"
+---
+
+# Design system (RunningCalendar)
+
+When editing files matched by these globs, treat the **`/design/`** folder as the source of truth for UX and UI decisions.
+
+- **Consult `/design/` before and while changing UI.** Each file in that folder defines a design system concept (principles, tokens, personas, mockups, and other aspects as they are added).
+- **Use existing design tokens** for colors, spacing, typography, motion, and breakpoints. Do not introduce arbitrary raw values in CSS (e.g. one-off hex colors or `px` spacing) when a token exists or should be added per the tokens doc.
+- **Observe semantics** when choosing tokens and components: match intent (e.g. semantic color roles, heading levels, interactive states) to the documented system rather than picking by appearance alone.
+
+If something is missing from `/design/`, prefer extending the documented system (e.g. adding a token) over ad-hoc styling, unless the task explicitly calls for a temporary exception.
