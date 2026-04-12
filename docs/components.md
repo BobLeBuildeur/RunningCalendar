@@ -54,8 +54,13 @@ Agnostic calendar UI for choosing an **inclusive** start and end **calendar day*
 
 **Presentation**
 
-- Collapsed summary when not focused; expanded dual-month grid when the control has focus (focus moves into the popover while selecting).
+- Collapsed summary; **click the trigger** to open or close the dual-month grid. The trigger uses **mousedown to open** when closed so the same gesture’s `click` does not immediately toggle shut again.
+- **Blur outside** closes the popover: `focusout` defers with `setTimeout(0)` and checks `document.activeElement` because `relatedTarget` is often `null` when focus moves into the calendar.
 - Styling uses design tokens (`--color-primary`, `--color-danger`, `--color-secondary`, etc.).
+
+**Demo video**
+
+- Run `npm run test:e2e:demo`; Cypress records `artifacts/ui/cypress-videos/date-range-picker-demo.cy.ts.mp4` (gitignored).
 
 ## Race date filter (`src/components/RaceDateFilter.svelte`)
 

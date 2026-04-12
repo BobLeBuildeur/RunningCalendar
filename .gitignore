@@ -12,6 +12,7 @@ node_modules/
 # Cypress
 cypress/screenshots/
 cypress/videos/
+artifacts/ui/cypress-videos/
 
 # Python
 __pycache__/

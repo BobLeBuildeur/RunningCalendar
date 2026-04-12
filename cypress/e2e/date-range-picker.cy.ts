@@ -9,7 +9,7 @@ describe('Date range picker', () => {
 		cy.get('[data-testid="date-range-popover"]').should('not.exist');
 	});
 
-	it('expands on focus and collapses on blur', () => {
+	it('expands on trigger click and collapses on blur', () => {
 		cy.get('[data-testid="date-range-trigger"]').click();
 		cy.get('[data-testid="date-range-popover"]').should('be.visible');
 		cy.get('.page-header__title').click();
@@ -20,6 +20,7 @@ describe('Date range picker', () => {
 		cy.get('.race-card:not([hidden])').its('length').as('initialCount');
 
 		cy.get('[data-testid="date-range-trigger"]').click();
+		cy.get('[data-testid="date-range-popover"]').should('be.visible');
 		cy.get('[data-day="2026-04-10"]').click();
 		cy.get('[data-testid="date-range-picker"]').should('have.attr', 'data-state', 'invalid');
 		cy.get('[data-testid="drp-invalid-icon"]').should('be.visible');
@@ -31,6 +32,7 @@ describe('Date range picker', () => {
 
 	it('becomes valid with two dates and filters races by inclusive date range', () => {
 		cy.get('[data-testid="date-range-trigger"]').click();
+		cy.get('[data-testid="date-range-popover"]').should('be.visible');
 		cy.get('[data-day="2026-04-10"]').click();
 		cy.get('[data-day="2026-04-12"]').click();
 		cy.get('[data-testid="date-range-picker"]').should('have.attr', 'data-state', 'valid');
@@ -47,6 +49,7 @@ describe('Date range picker', () => {
 
 	it('clears the filter when the range is cleared', () => {
 		cy.get('[data-testid="date-range-trigger"]').click();
+		cy.get('[data-testid="date-range-popover"]').should('be.visible');
 		cy.get('[data-day="2026-04-10"]').click();
 		cy.get('[data-day="2026-04-15"]').click();
 		cy.get('[data-testid="date-range-picker"]').should('have.attr', 'data-state', 'valid');

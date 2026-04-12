@@ -47,29 +47,41 @@
 		}
 	}
 
-	function open() {
-		expanded = true;
-		if (start) setViewFromKey(start);
-	}
-
 	function close() {
 		expanded = false;
 	}
 
-	function onRootFocusIn(e: FocusEvent) {
-		const root = e.currentTarget as HTMLElement;
-		const rt = e.relatedTarget as Node | null;
-		if (!rt || !root.contains(rt)) {
-			open();
+	/**
+	 * Opening uses mousedown so the following `click` does not immediately toggle closed.
+	 * (Same issue as popover + toggle on one control.)
+	 */
+	let skipNextTriggerClick = $state(false);
+
+	function onTriggerMouseDown() {
+		if (!expanded) {
+			skipNextTriggerClick = true;
+			expanded = true;
+			if (start) setViewFromKey(start);
 		}
+	}
+
+	function onTriggerClick() {
+		if (skipNextTriggerClick) {
+			skipNextTriggerClick = false;
+			return;
+		}
+		expanded = !expanded;
+		if (expanded && start) setViewFromKey(start);
 	}
 
 	function onRootFocusOut(e: FocusEvent) {
 		const root = e.currentTarget as HTMLElement;
 		const rt = e.relatedTarget as Node | null;
-		if (!rt || !root.contains(rt)) {
-			close();
-		}
+		if (rt && root.contains(rt)) return;
+		/* relatedTarget is often null when tabbing or moving focus programmatically; defer so activeElement has settled */
+		setTimeout(() => {
+			if (!root.contains(document.activeElement)) close();
+		}, 0);
 	}
 
 	function onDayClick(key: DateKey) {
@@ -200,7 +212,6 @@
 	class:drp--valid={state === 'valid'}
 	data-testid="date-range-picker"
 	data-state={state}
-	onfocusin={onRootFocusIn}
 	onfocusout={onRootFocusOut}
 >
 	<div class="drp__field-wrap">
@@ -213,6 +224,8 @@
 			aria-controls="{id}-popover"
 			aria-labelledby={labelledBy}
 			data-testid="date-range-trigger"
+			onmousedown={onTriggerMouseDown}
+			onclick={onTriggerClick}
 		>
 			<span class="drp__trigger-icon" aria-hidden="true">
 				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -375,10 +388,18 @@
 		position: relative;
 		min-width: 0;
 		width: 100%;
+		/* Popover extends below; avoid clipping from ancestor overflow */
+		overflow: visible;
+		z-index: 1;
+	}
+
+	.drp--expanded {
+		z-index: 10;
 	}
 
 	.drp__field-wrap {
 		position: relative;
+		overflow: visible;
 	}
 
 	.drp__trigger {
@@ -479,7 +500,7 @@
 
 	.drp__popover {
 		position: absolute;
-		z-index: 20;
+		z-index: 100;
 		left: 0;
 		right: 0;
 		margin-top: var(--space-xs);
