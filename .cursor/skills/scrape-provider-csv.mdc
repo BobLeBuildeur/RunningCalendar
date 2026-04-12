@@ -1,0 +1,55 @@
+---
+description: Run a data scraper for one provider and merge results into src/data/races.csv
+globs:
+  - "scrapers/**"
+  - "src/data/**/*.csv"
+---
+
+# Scrape provider and update races CSV
+
+When the user asks to **scrape** (or **refresh**) race data for a **given provider** and **update the CSVs**, follow this workflow.
+
+## 1. Resolve the scraper name
+
+Scraper modules live under `scrapers/running_calendar_scrapers/` and are invoked by **Python module name** (filename without `.py`), not necessarily the same string as `providers.slug` in `src/data/providers.csv`.
+
+- List available scrapers from the repo root:
+
+```bash
+cd scrapers && python3 run_scrapers.py list
+```
+
+- Map the user’s provider to that name when needed (examples: **Iguana** → `iguana`; **Yescom** → `yescom`; **Corre Brasil** → `corre_brasil`). If unclear, prefer the output of `list`.
+
+## 2. Run the scraper and merge into `races.csv`
+
+From `scrapers/`:
+
+```bash
+python3 run_scrapers.py run <SCRAPER_NAME> --save-to
+```
+
+- `--save-to` with no path merges into the default **`src/data/races.csv`** (repo root). To target another file: `--save-to /path/to/races.csv`.
+- Scrapers that take a calendar year accept **`--year`** (default in the CLI is **2026**). Example:
+
+```bash
+python3 run_scrapers.py run yescom --year 2026 --save-to
+```
+
+The command prints duplicate/skip notices and whether new rows were written.
+
+## 3. Validate and sanity-check
+
+After updating data:
+
+```bash
+cd ..   # back to repo root if you were in scrapers/
+npm run validate-csv
+npm run build
+```
+
+Fix any validation errors before finishing (new races must reference existing `providerSlug`, `typeSlug`, and distance slugs per `docs/data-model.md` and `docs/slug-conventions.md`).
+
+## 4. Commit
+
+If the CSV changed and validation passes, stage `src/data/races.csv` (and any other intentional data edits) with a clear commit message.
