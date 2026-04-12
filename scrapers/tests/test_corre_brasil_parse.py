@@ -23,7 +23,7 @@ def test_parse_day_month_variants():
 
 def test_parse_place():
 	assert _parse_place_line("Camboriú/SC") == ("Camboriú", "SC", "Brasil")
-	assert _parse_place_line("Santa Catarina") == ("Santa Catarina", "", "Brasil")
+	assert _parse_place_line("Santa Catarina") == ("Santa Catarina", "SC", "Brasil")
 
 
 def test_fixture_repeater_snapshot():

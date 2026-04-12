@@ -18,6 +18,43 @@ USER_AGENT = "RunningCalendarBot/1.0 (+https://github.com/boblebuildeur/RunningC
 
 _SITE_HOST = "correbrasil.com.br"
 
+# When the site lists only the state name (no City/UF), map to UF for non-empty `state` (validate-csv).
+_BR_STATE_NAME_TO_UF: dict[str, str] = {
+	"acre": "AC",
+	"alagoas": "AL",
+	"amapa": "AP",
+	"amazonas": "AM",
+	"bahia": "BA",
+	"ceara": "CE",
+	"distrito federal": "DF",
+	"espirito santo": "ES",
+	"goias": "GO",
+	"maranhao": "MA",
+	"mato grosso": "MT",
+	"mato grosso do sul": "MS",
+	"minas gerais": "MG",
+	"para": "PA",
+	"paraiba": "PB",
+	"parana": "PR",
+	"pernambuco": "PE",
+	"piaui": "PI",
+	"rio de janeiro": "RJ",
+	"rio grande do norte": "RN",
+	"rio grande do sul": "RS",
+	"rondonia": "RO",
+	"roraima": "RR",
+	"santa catarina": "SC",
+	"sao paulo": "SP",
+	"sergipe": "SE",
+	"tocantins": "TO",
+}
+
+
+def _norm_state_lookup_key(s: str) -> str:
+	t = unicodedata.normalize("NFKD", s.strip().lower())
+	return "".join(ch for ch in t if not unicodedata.combining(ch))
+
+
 _PT_MONTHS = {
 	"janeiro": 1,
 	"fevereiro": 2,
@@ -113,6 +150,9 @@ def _parse_place_line(place_line: str) -> tuple[str, str, str]:
 		st = right.strip().upper()
 		if len(st) == 2 and st.isalpha():
 			return (city, st, "Brasil")
+	uf = _BR_STATE_NAME_TO_UF.get(_norm_state_lookup_key(raw))
+	if uf:
+		return (raw, uf, "Brasil")
 	return (raw, "", "Brasil")
 
 
