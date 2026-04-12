@@ -336,6 +336,29 @@ export function kmForDistanceSlug(slug: string): number | undefined {
 	return distanceKmBySlug.get(slug);
 }
 
+/** Min/max km across this race's listed distances, or `null` when none are set. */
+export function raceKmRange(race: RaceRow): { minKm: number; maxKm: number } | null {
+	const kms = race.distanceSlugs
+		.map((slug) => kmForDistanceSlug(slug))
+		.filter((k): k is number => k !== undefined);
+	if (kms.length === 0) return null;
+	return { minKm: Math.min(...kms), maxKm: Math.max(...kms) };
+}
+
+/** Smallest/largest km among all races that list at least one distance. */
+export function distanceBoundsFromRaces(raceList: RaceRow[]): { minKm: number; maxKm: number } | null {
+	let minKm = Infinity;
+	let maxKm = -Infinity;
+	for (const r of raceList) {
+		const range = raceKmRange(r);
+		if (!range) continue;
+		minKm = Math.min(minKm, range.minKm);
+		maxKm = Math.max(maxKm, range.maxKm);
+	}
+	if (!Number.isFinite(minKm)) return null;
+	return { minKm, maxKm };
+}
+
 /** Badge label: optional distance `description` from `distances.csv`, else "Nkm" from km. */
 export function labelForDistanceSlug(slug: string): string {
 	const desc = distanceDescriptionBySlug.get(slug);

@@ -3,6 +3,7 @@
 	import {
 		formatRaceDateTimeDisplay,
 		formatRaceLocationLine,
+		kmForDistanceSlug,
 		labelForDistanceSlug,
 		providerForSlug,
 		raceUrl,
@@ -37,9 +38,16 @@
 	}
 
 	const badges = $derived(distanceBadges(race));
+
+	const distanceKmsCsv = $derived(
+		race.distanceSlugs
+			.map((slug) => kmForDistanceSlug(slug))
+			.filter((k): k is number => k !== undefined)
+			.join(';'),
+	);
 </script>
 
-<li class="race-card" data-location={locationLine}>
+<li class="race-card" data-location={locationLine} data-distance-kms={distanceKmsCsv}>
 	<article class="race-card__surface">
 		<header class="race-card__section race-card__section--header">
 			<p class="race-card__datetime">{dateTimeLine}</p>
