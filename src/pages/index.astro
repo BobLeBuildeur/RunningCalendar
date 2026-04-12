@@ -1,4 +1,5 @@
 ---
+import RaceDateFilter from '../components/RaceDateFilter.svelte';
 import RaceDistanceFilter from '../components/RaceDistanceFilter.svelte';
 import RaceItem from '../components/RaceItem.svelte';
 import { distanceBoundsFromRaces, formatRaceLocationLine, races } from '../data/races';
@@ -9,6 +10,9 @@ const locationOptions = Array.from(new Set(races.map((r) => formatRaceLocationLi
 );
 
 const distanceBounds = distanceBoundsFromRaces(races);
+
+const filterBarInnerClass =
+	`filter-bar__inner${distanceBounds ? '' : ' filter-bar__inner--two-cols'}`;
 ---
 
 <html lang="en">
@@ -119,8 +123,12 @@ const distanceBounds = distanceBoundsFromRaces(races);
 
 			@media (min-width: 640px) {
 				.filter-bar__inner {
-					grid-template-columns: 1fr auto 1fr;
+					grid-template-columns: 1fr auto 1fr auto 1fr;
 					align-items: start;
+				}
+
+				.filter-bar__inner--two-cols {
+					grid-template-columns: 1fr auto 1fr;
 				}
 			}
 
@@ -147,7 +155,7 @@ const distanceBounds = distanceBoundsFromRaces(races);
 				</header>
 
 				<section class="filter-bar grid__col grid__col--span-12" aria-label="Filter races">
-					<div class="filter-bar__inner">
+					<div class={filterBarInnerClass}>
 						<div class="filter-bar__field">
 							<label class="filter-bar__label" for="race-location-filter">
 								<svg
@@ -193,6 +201,11 @@ const distanceBounds = distanceBoundsFromRaces(races);
 								</div>
 							</>
 						)}
+
+						<div class="filter-bar__divider" aria-hidden="true" />
+						<div class="filter-bar__field">
+							<RaceDateFilter client:load fieldId="race-date-filter" />
+						</div>
 					</div>
 				</section>
 
@@ -248,6 +261,9 @@ const distanceBounds = distanceBoundsFromRaces(races);
 					}
 				: null;
 
+			/** @type {{ start: string, end: string } | null} */
+			let dateRangeFilter = null;
+
 			function applyRaceFilters() {
 				const select = document.getElementById('race-location-filter');
 				if (!select || !(select instanceof HTMLSelectElement)) return;
@@ -269,9 +285,28 @@ const distanceBounds = distanceBoundsFromRaces(races);
 						}
 					}
 
-					li.hidden = !(locationMatch && distanceMatch);
+					let dateMatch = true;
+					if (dateRangeFilter) {
+						const raceDate = li.getAttribute('data-race-date') ?? '';
+						dateMatch =
+							raceDate !== '' &&
+							raceDate >= dateRangeFilter.start &&
+							raceDate <= dateRangeFilter.end;
+					}
+
+					li.hidden = !(locationMatch && distanceMatch && dateMatch);
 				});
 			}
+
+			document.addEventListener('runningcalendar:daterange', (e) => {
+				const d = e?.detail;
+				if (d && d.state === 'valid' && d.start && d.end) {
+					dateRangeFilter = { start: d.start, end: d.end };
+				} else {
+					dateRangeFilter = null;
+				}
+				applyRaceFilters();
+			});
 
 			document.addEventListener('runningcalendar:distance', (e) => {
 				const d = e?.detail;

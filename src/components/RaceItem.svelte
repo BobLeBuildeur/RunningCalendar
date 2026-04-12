@@ -45,9 +45,17 @@
 			.filter((k): k is number => k !== undefined)
 			.join(';'),
 	);
+
+	/** YYYY-MM-DD in local calendar for date-range filtering */
+	const raceDateKey = $derived(race.sortKey.slice(0, 10));
 </script>
 
-<li class="race-card" data-location={locationLine} data-distance-kms={distanceKmsCsv}>
+<li
+	class="race-card"
+	data-location={locationLine}
+	data-distance-kms={distanceKmsCsv}
+	data-race-date={raceDateKey}
+>
 	<article class="race-card__surface">
 		<header class="race-card__section race-card__section--header">
 			<p class="race-card__datetime">{dateTimeLine}</p>
