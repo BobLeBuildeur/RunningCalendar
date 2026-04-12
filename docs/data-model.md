@@ -2,7 +2,7 @@
 
 RunningCalendar stores normalized race data in CSV files under `src/data/`. The site loads them at build time via `src/data/races.ts`.
 
-Schema validation runs in CI: `npm run validate-csv`. Slug rules are summarized in [slug-conventions.md](./slug-conventions.md).
+Schema validation: run `npm run validate-csv` locally before committing. Slug rules are summarized in [slug-conventions.md](./slug-conventions.md).
 
 ## Entity relationship
 
