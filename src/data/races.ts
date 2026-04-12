@@ -73,6 +73,13 @@ export function raceUrl(race: Pick<RaceRow, 'detailUrl'>): string {
 	return race.detailUrl;
 }
 
+/** Combined location line for display and filtering: "City, ST, Country". */
+export function formatRaceLocationLine(
+	race: Pick<RaceRow, 'city' | 'state' | 'country'>,
+): string {
+	return `${race.city}, ${race.state}, ${race.country}`;
+}
+
 /** Minimal RFC 4180-style CSV parser (quoted fields, commas). */
 function parseCsv(text: string): string[][] {
 	const rows: string[][] = [];

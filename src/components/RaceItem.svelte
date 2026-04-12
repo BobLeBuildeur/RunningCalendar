@@ -2,6 +2,7 @@
 	import Badge from './Badge.svelte';
 	import {
 		formatRaceDateTimeDisplay,
+		formatRaceLocationLine,
 		labelForDistanceSlug,
 		providerForSlug,
 		raceUrl,
@@ -15,7 +16,7 @@
 
 	const dateTimeLine = $derived(formatRaceDateTimeDisplay(race.sortKey).replace(/,\s*/, ' • '));
 
-	const locationLine = $derived(`${race.city}, ${race.state}, ${race.country}`);
+	const locationLine = $derived(formatRaceLocationLine(race));
 
 	type DistanceBadge = { label: string };
 
@@ -38,7 +39,7 @@
 	const badges = $derived(distanceBadges(race));
 </script>
 
-<li class="race-card">
+<li class="race-card" data-location={locationLine}>
 	<article class="race-card__surface">
 		<header class="race-card__section race-card__section--header">
 			<p class="race-card__datetime">{dateTimeLine}</p>

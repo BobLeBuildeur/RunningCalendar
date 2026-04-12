@@ -1,7 +1,11 @@
 ---
 import RaceItem from '../components/RaceItem.svelte';
-import { races } from '../data/races';
+import { formatRaceLocationLine, races } from '../data/races';
 import '../styles/global.css';
+
+const locationOptions = Array.from(new Set(races.map((r) => formatRaceLocationLine(r)))).sort((a, b) =>
+	a.localeCompare(b, undefined, { sensitivity: 'base' }),
+);
 ---
 
 <html lang="en">
@@ -26,6 +30,84 @@ import '../styles/global.css';
 				padding: 0;
 				list-style: none;
 			}
+
+			.filter-bar {
+				background: var(--color-background);
+				border: 1px solid var(--color-border);
+				border-radius: var(--radius-md);
+				box-shadow: var(--shadow-sm);
+				padding: var(--space-lg);
+				margin: 0 0 var(--space-xl);
+			}
+
+			.filter-bar__field {
+				display: flex;
+				flex-direction: column;
+				gap: var(--space-sm);
+				min-width: 0;
+			}
+
+			.filter-bar__label {
+				display: inline-flex;
+				align-items: center;
+				gap: var(--space-xs);
+				margin: 0;
+				font-size: var(--text-meta);
+				font-weight: var(--font-weight-semibold);
+				color: var(--color-text-primary);
+				line-height: 1.3;
+			}
+
+			.filter-bar__label-icon {
+				flex-shrink: 0;
+				color: var(--color-primary);
+			}
+
+			.filter-bar__select-wrap {
+				position: relative;
+			}
+
+			.filter-bar__select-wrap::after {
+				content: '';
+				position: absolute;
+				top: 50%;
+				right: var(--space-md);
+				width: 0.5rem;
+				height: 0.5rem;
+				border-right: 2px solid var(--color-text-secondary);
+				border-bottom: 2px solid var(--color-text-secondary);
+				transform: translateY(-65%) rotate(45deg);
+				pointer-events: none;
+			}
+
+			.filter-bar__select {
+				appearance: none;
+				width: 100%;
+				margin: 0;
+				padding: var(--space-sm) calc(var(--space-lg) + var(--space-sm)) var(--space-sm) var(--space-md);
+				font-size: var(--text-body);
+				font-weight: var(--font-weight-regular);
+				line-height: 1.4;
+				color: var(--color-text-primary);
+				background: var(--color-background);
+				border: 1px solid var(--color-border);
+				border-radius: var(--radius-md);
+				cursor: pointer;
+			}
+
+			.filter-bar__select:hover {
+				border-color: var(--color-primary);
+			}
+
+			.filter-bar__select:focus {
+				outline: none;
+				border-color: var(--color-primary);
+				box-shadow: 0 0 0 3px rgb(11 110 79 / 18%);
+			}
+
+			.filter-bar__select option {
+				color: var(--color-text-primary);
+			}
 		</style>
 	</head>
 	<body class="layout">
@@ -33,16 +115,64 @@ import '../styles/global.css';
 			<div class="grid">
 				<header class="grid__col grid__col--span-12 page-header">
 					<h1 class="page-header__title">RunningCalendar</h1>
-					<p class="page-header__subtitle">
-						Initial race list from <a href="https://iguanasports.com.br">iguanasports.com.br</a> (calendar
-						<a href="https://iguanasports.com.br/blogs/calendario-corridas-de-rua">calendário de corridas</a>).
-					</p>
 				</header>
+
+				<section
+					class="filter-bar grid__col grid__col--span-12"
+					aria-label="Filter races by location"
+				>
+					<div class="filter-bar__field">
+						<label class="filter-bar__label" for="race-location-filter">
+							<svg
+								class="filter-bar__label-icon"
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								xmlns="http://www.w3.org/2000/svg"
+								aria-hidden="true"
+							>
+								<path
+									d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+								<circle cx="12" cy="11" r="2.5" stroke="currentColor" stroke-width="2" />
+							</svg>
+							Location
+						</label>
+						<div class="filter-bar__select-wrap">
+							<select id="race-location-filter" class="filter-bar__select" autocomplete="off">
+								<option value="">Any location</option>
+								{locationOptions.map((loc) => (
+									<option value={loc}>{loc}</option>
+								))}
+							</select>
+						</div>
+					</div>
+				</section>
 
 				<ul class="race-list grid__col grid__col--span-12">
 					{races.map((r) => <RaceItem race={r} />)}
 				</ul>
 			</div>
 		</div>
+		<script is:inline>
+			function applyLocationFilter() {
+				const select = document.getElementById('race-location-filter');
+				if (!select || !(select instanceof HTMLSelectElement)) return;
+				const value = select.value.trim();
+				const items = document.querySelectorAll('.race-list .race-card');
+				items.forEach((li) => {
+					const loc = li.getAttribute('data-location') ?? '';
+					const match = value === '' || loc === value;
+					li.hidden = !match;
+				});
+			}
+
+			document.getElementById('race-location-filter')?.addEventListener('change', applyLocationFilter);
+		</script>
 	</body>
 </html>
