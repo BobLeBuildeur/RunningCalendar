@@ -42,6 +42,24 @@
 		formatRange?.(start, end) ?? `${formatValue(start)} — ${formatValue(end)}`,
 	);
 
+	/** Upper bound for start thumb and lower bound for end thumb (native range cannot cross). */
+	const startInputMax = $derived(Math.min(max, end));
+	const endInputMin = $derived(Math.max(min, start));
+
+	/** Percent 0–100 of value within [min, max] */
+	function pct(value: number): number {
+		if (max <= min) return 0;
+		return ((value - min) / (max - min)) * 100;
+	}
+
+	/**
+	 * Each input only spans the sub-range it controls; width/offset match the global track so thumb
+	 * position stays correct while `min`/`max` on the element enforce the collision stop.
+	 */
+	const startSegWidthPct = $derived(max <= min ? 100 : ((end - min) / (max - min)) * 100);
+	const endSegLeftPct = $derived(pct(start));
+	const endSegWidthPct = $derived(max <= min ? 100 : ((max - start) / (max - min)) * 100);
+
 	function clampStart(v: number): number {
 		const lo = min;
 		const hi = Math.min(max, end);
@@ -53,8 +71,6 @@
 		const hi = max;
 		return Math.min(Math.max(v, lo), hi);
 	}
-
-	// Both range inputs use full [min, max]; clamps keep start ≤ end (narrowed min/max broke thumb mapping).
 
 	function onStartInput(e: Event) {
 		const el = e.currentTarget;
@@ -72,12 +88,6 @@
 		end = clampEnd(v);
 	}
 
-	/** Percent 0–100 of value within [min, max] */
-	function pct(value: number): number {
-		if (max <= min) return 0;
-		return ((value - min) / (max - min)) * 100;
-	}
-
 	const fillLeft = $derived(pct(start));
 	const fillWidth = $derived(Math.max(0, pct(end) - pct(start)));
 </script>
@@ -87,36 +97,48 @@
 
 	<div class="dual-range__track-wrap">
 		<div class="dual-range__track" style:--fill-left="{fillLeft}%" style:--fill-width="{fillWidth}%">
-			<input
-				id="{sliderId}-start"
-				data-testid="{sliderId}-range-start"
-				class="dual-range__input dual-range__input--start"
-				type="range"
-				min={min}
-				max={max}
-				step={step}
-				value={start}
-				aria-label="Range start"
-				aria-valuemin={min}
-				aria-valuemax={max}
-				aria-valuenow={start}
-				oninput={onStartInput}
-			/>
-			<input
-				id="{sliderId}-end"
-				data-testid="{sliderId}-range-end"
-				class="dual-range__input dual-range__input--end"
-				type="range"
-				min={min}
-				max={max}
-				step={step}
-				value={end}
-				aria-label="Range end"
-				aria-valuemin={min}
-				aria-valuemax={max}
-				aria-valuenow={end}
-				oninput={onEndInput}
-			/>
+			<div
+				class="dual-range__segment dual-range__segment--start"
+				style:left="0"
+				style:width="{startSegWidthPct}%"
+			>
+				<input
+					id="{sliderId}-start"
+					data-testid="{sliderId}-range-start"
+					class="dual-range__input dual-range__input--start"
+					type="range"
+					min={min}
+					max={startInputMax}
+					step={step}
+					value={start}
+					aria-label="Range start"
+					aria-valuemin={min}
+					aria-valuemax={startInputMax}
+					aria-valuenow={start}
+					oninput={onStartInput}
+				/>
+			</div>
+			<div
+				class="dual-range__segment dual-range__segment--end"
+				style:left="{endSegLeftPct}%"
+				style:width="{endSegWidthPct}%"
+			>
+				<input
+					id="{sliderId}-end"
+					data-testid="{sliderId}-range-end"
+					class="dual-range__input dual-range__input--end"
+					type="range"
+					min={endInputMin}
+					max={max}
+					step={step}
+					value={end}
+					aria-label="Range end"
+					aria-valuemin={endInputMin}
+					aria-valuemax={max}
+					aria-valuenow={end}
+					oninput={onEndInput}
+				/>
+			</div>
 		</div>
 	</div>
 
@@ -147,6 +169,13 @@
 	.dual-range__track-wrap {
 		position: relative;
 		padding-block: var(--space-sm);
+	}
+
+	.dual-range__segment {
+		position: absolute;
+		top: 0;
+		height: var(--space-md);
+		min-width: 0;
 	}
 
 	.dual-range__track {
