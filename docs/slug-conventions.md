@@ -8,7 +8,7 @@ All slug fields in `src/data/*.csv` use the same lexical rules and act as identi
 - No spaces, underscores, diacritics, or punctuation other than `-`.
 - Regex: `^[a-z0-9]+(-[a-z0-9]+)*$`.
 
-Examples: `road`, `iguana-sports`, `21-1km`, `yescom-2026-0001-19-meia-maratona-intl-de-s-o-paulo`.
+Examples: `road`, `iguana-sports`, `running-land`, `21-1km`, `yescom-2026-0001-19-meia-maratona-intl-de-s-o-paulo`.
 
 ## Primary keys
 
