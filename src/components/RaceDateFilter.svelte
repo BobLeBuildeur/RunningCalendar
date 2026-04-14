@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import DateRangePicker from './DateRangePicker.svelte';
 
 	let {
@@ -6,9 +7,19 @@
 	}: {
 		fieldId?: string;
 	} = $props();
+
+	let hydrated = $state(false);
+
+	onMount(() => {
+		hydrated = true;
+	});
 </script>
 
-<div class="race-date-filter">
+<div
+	class="race-date-filter"
+	data-testid="race-date-filter"
+	data-hydrated={hydrated ? 'true' : 'false'}
+>
 	<p class="race-date-filter__label" id="{fieldId}-heading">
 		<svg
 			class="race-date-filter__label-icon"
