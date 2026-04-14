@@ -60,7 +60,7 @@
 		<header class="race-card__section race-card__section--header">
 			<p class="race-card__datetime">{dateTimeLine}</p>
 			{#if badges.length > 0}
-				<ul class="race-card__badges" aria-label="Distances">
+				<ul class="race-card__badges" aria-label="Distâncias">
 					{#each badges as b (b.label)}
 						<li class="race-card__badge-slot">
 							<Badge>{b.label}</Badge>
@@ -82,7 +82,7 @@
 
 		<footer class="race-card__section race-card__section--footer">
 			<a class="race-card__action" href={href}>
-				View Details
+				Ver detalhes
 				<span class="race-card__action-icon" aria-hidden="true">→</span>
 			</a>
 		</footer>

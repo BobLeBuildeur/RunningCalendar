@@ -24,7 +24,7 @@
 >
 	<p class="race-date-filter__label" id="{fieldId}-heading">
 		<LucideIcon icon={Calendar} class="race-date-filter__label-icon" size={16} aria-hidden={true} />
-		Date
+		Data
 	</p>
 	<DateRangePicker id={fieldId} labelledBy="{fieldId}-heading" />
 </div>
