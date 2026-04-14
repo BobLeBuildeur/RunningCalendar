@@ -63,12 +63,21 @@ a:hover {
 }
 
 .page-header__title {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-sm);
 	margin: 0;
 	font-family: var(--font-family-sans);
 	font-size: var(--text-display);
 	font-weight: var(--font-weight-bold);
 	line-height: var(--line-height-tight);
 	color: var(--color-text-primary);
+}
+
+.page-header__title-icon-wrap {
+	display: inline-flex;
+	flex-shrink: 0;
+	color: var(--color-primary);
 }
 
 .page-header__subtitle {
