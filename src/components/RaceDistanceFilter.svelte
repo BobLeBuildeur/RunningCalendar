@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import DualRangeSlider from './DualRangeSlider.svelte';
 
 	let {
@@ -24,6 +25,11 @@
 
 	let start = $state(minKm);
 	let end = $state(maxKm);
+	let hydrated = $state(false);
+
+	onMount(() => {
+		hydrated = true;
+	});
 
 	$effect(() => {
 		document.dispatchEvent(
@@ -35,7 +41,11 @@
 	});
 </script>
 
-<div class="race-distance-filter">
+<div
+	class="race-distance-filter"
+	data-testid="race-distance-filter"
+	data-hydrated={hydrated ? 'true' : 'false'}
+>
 	<p class="race-distance-filter__label" id="{sliderId}-heading">
 		<svg
 			class="race-distance-filter__label-icon"

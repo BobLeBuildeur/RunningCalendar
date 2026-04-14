@@ -2,6 +2,7 @@ describe('Date range picker', () => {
 	beforeEach(() => {
 		cy.clock(new Date(2026, 3, 10).getTime(), ['Date']);
 		cy.visit('/RunningCalendar/');
+		cy.get('[data-testid="race-date-filter"]').should('have.attr', 'data-hydrated', 'true');
 	});
 
 	it('starts collapsed and inactive', () => {

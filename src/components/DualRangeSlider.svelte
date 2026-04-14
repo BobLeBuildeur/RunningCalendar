@@ -54,6 +54,8 @@
 		return Math.min(Math.max(v, lo), hi);
 	}
 
+	// Both range inputs use full [min, max]; clamps keep start ≤ end (narrowed min/max broke thumb mapping).
+
 	function onStartInput(e: Event) {
 		const el = e.currentTarget;
 		if (!(el instanceof HTMLInputElement)) return;
@@ -87,28 +89,30 @@
 		<div class="dual-range__track" style:--fill-left="{fillLeft}%" style:--fill-width="{fillWidth}%">
 			<input
 				id="{sliderId}-start"
+				data-testid="{sliderId}-range-start"
 				class="dual-range__input dual-range__input--start"
 				type="range"
 				min={min}
-				max={Math.min(max, end)}
+				max={max}
 				step={step}
 				value={start}
 				aria-label="Range start"
 				aria-valuemin={min}
-				aria-valuemax={Math.min(max, end)}
+				aria-valuemax={max}
 				aria-valuenow={start}
 				oninput={onStartInput}
 			/>
 			<input
 				id="{sliderId}-end"
+				data-testid="{sliderId}-range-end"
 				class="dual-range__input dual-range__input--end"
 				type="range"
-				min={Math.max(min, start)}
+				min={min}
 				max={max}
 				step={step}
 				value={end}
 				aria-label="Range end"
-				aria-valuemin={Math.max(min, start)}
+				aria-valuemin={min}
 				aria-valuemax={max}
 				aria-valuenow={end}
 				oninput={onEndInput}
