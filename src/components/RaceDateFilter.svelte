@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { Calendar } from 'lucide';
 	import { onMount } from 'svelte';
 	import DateRangePicker from './DateRangePicker.svelte';
+	import LucideIcon from './LucideIcon.svelte';
 
 	let {
 		fieldId = 'race-date-filter',
@@ -21,19 +23,7 @@
 	data-hydrated={hydrated ? 'true' : 'false'}
 >
 	<p class="race-date-filter__label" id="{fieldId}-heading">
-		<svg
-			class="race-date-filter__label-icon"
-			width="16"
-			height="16"
-			viewBox="0 0 24 24"
-			fill="none"
-			xmlns="http://www.w3.org/2000/svg"
-			aria-hidden="true"
-		>
-			<rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2" />
-			<path d="M3 10h18" stroke="currentColor" stroke-width="2" />
-			<path d="M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-		</svg>
+		<LucideIcon icon={Calendar} class="race-date-filter__label-icon" size={16} aria-hidden={true} />
 		Date
 	</p>
 	<DateRangePicker id={fieldId} labelledBy="{fieldId}-heading" />

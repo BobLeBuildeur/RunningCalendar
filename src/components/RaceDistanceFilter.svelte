@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { MoveHorizontal } from 'lucide';
 	import { onMount } from 'svelte';
 	import DualRangeSlider from './DualRangeSlider.svelte';
+	import LucideIcon from './LucideIcon.svelte';
 
 	let {
 		minKm,
@@ -47,23 +49,7 @@
 	data-hydrated={hydrated ? 'true' : 'false'}
 >
 	<p class="race-distance-filter__label" id="{sliderId}-heading">
-		<svg
-			class="race-distance-filter__label-icon"
-			width="16"
-			height="16"
-			viewBox="0 0 24 24"
-			fill="none"
-			xmlns="http://www.w3.org/2000/svg"
-			aria-hidden="true"
-		>
-			<path
-				d="M4 19V5M4 19H20M4 19L8 15M4 19L8 23M20 19V5M20 19L16 15M20 19L16 23"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			/>
-		</svg>
+		<LucideIcon icon={MoveHorizontal} class="race-distance-filter__label-icon" size={16} aria-hidden={true} />
 		Distance
 	</p>
 	<DualRangeSlider
