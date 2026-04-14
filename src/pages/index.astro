@@ -146,6 +146,17 @@ const filterBarInnerClass =
 					display: block;
 				}
 			}
+
+			/* Empty filter state — supporting text (design/5-language.md, color.text.secondary) */
+			.race-list-empty {
+				margin: 0;
+				padding: var(--space-lg);
+				font-size: var(--text-body);
+				font-weight: var(--font-weight-regular);
+				line-height: var(--line-height-body);
+				color: var(--color-text-secondary);
+				text-align: center;
+			}
 		</style>
 	</head>
 	<body class="layout">
@@ -213,6 +224,10 @@ const filterBarInnerClass =
 				<ul class="race-list grid__col grid__col--span-12">
 					{races.map((r) => <RaceItem race={r} />)}
 				</ul>
+				<p id="race-list-empty" class="race-list-empty grid__col grid__col--span-12" role="status" hidden>
+					No races match your filters right now. Review location, distance, and dates—widening one of them
+					usually brings back options you can compare.
+				</p>
 			</div>
 		</div>
 		<script
@@ -270,6 +285,8 @@ const filterBarInnerClass =
 				if (!select || !(select instanceof HTMLSelectElement)) return;
 				const locationValue = select.value.trim();
 				const items = document.querySelectorAll('.race-list .race-card');
+				const emptyMsg = document.getElementById('race-list-empty');
+				let visibleCount = 0;
 
 				items.forEach((li) => {
 					const loc = li.getAttribute('data-location') ?? '';
@@ -295,8 +312,12 @@ const filterBarInnerClass =
 							raceDate <= dateRangeFilter.end;
 					}
 
-					li.hidden = !(locationMatch && distanceMatch && dateMatch);
+					const visible = locationMatch && distanceMatch && dateMatch;
+					li.hidden = !visible;
+					if (visible) visibleCount += 1;
 				});
+
+				if (emptyMsg) emptyMsg.hidden = visibleCount > 0;
 			}
 
 			document.addEventListener('runningcalendar:daterange', (e) => {
