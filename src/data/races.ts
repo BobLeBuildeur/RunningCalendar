@@ -57,7 +57,7 @@ export function formatRaceDateTimeDisplay(sortKey: string): string {
 	const month = Number(mo) - 1;
 	const day = Number(d);
 	const dt = new Date(Date.UTC(Number(y), month, day, Number(hh), Number(mm)));
-	return new Intl.DateTimeFormat('en-GB', {
+	return new Intl.DateTimeFormat('pt-BR', {
 		day: 'numeric',
 		month: 'short',
 		year: 'numeric',
@@ -366,7 +366,7 @@ export function labelForDistanceSlug(slug: string): string {
 	const km = distanceKmBySlug.get(slug);
 	if (km === undefined) return slug;
 	const n = km % 1 === 0 ? String(km) : String(km);
-	return `${n}km`;
+	return `${n} km`;
 }
 
 export function labelForTypeSlug(slug: string): string | undefined {

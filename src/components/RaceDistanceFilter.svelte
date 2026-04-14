@@ -50,7 +50,7 @@
 >
 	<p class="race-distance-filter__label" id="{sliderId}-heading">
 		<LucideIcon icon={MoveHorizontal} class="race-distance-filter__label-icon" size={16} aria-hidden={true} />
-		Distance
+		Distância
 	</p>
 	<DualRangeSlider
 		id={sliderId}
@@ -62,7 +62,7 @@
 		{step}
 		formatValue={formatKm}
 		formatMinLabel={() => `${minKm} km`}
-		formatMaxLabel={() => `${maxKm} km+`}
+		formatMaxLabel={() => `${maxKm} km ou mais`}
 		formatRange={formatRange}
 	/>
 </div>

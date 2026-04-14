@@ -2,6 +2,8 @@
 
 Guidelines for **on-product copy** in RunningCalendar: tone, intent, and patterns so text feels consistent with the design system and helps runners decide what to do next.
 
+**Default UI language:** write all user-facing product copy in **Portuguese from Brazil (PT_BR)** unless a specific audience or experiment calls for another locale.
+
 This document complements **`design/1-principles.md`** (UX principles) and **`design/2-tokens.md`** (visual tokens). Use **semantic text roles** from typography docs: primary text for main content, **`color.text.secondary`** (supporting) for hints and secondary information.
 
 ---
@@ -34,7 +36,7 @@ Ask implicitly: **“Should I run this race?”** Help users **evaluate options*
 
 | Do | Don’t |
 | --- | --- |
-| “Registration closes in 3 days” | “Hurry!!! Limited spots!!!” |
+| “As inscrições encerram em 3 dias” | “Corre!!! Últimas vagas!!!” |
 | Tie the next step to **information the UI already surfaces** | Vague cheerleading with no actionable detail |
 
 ---

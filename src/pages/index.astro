@@ -16,7 +16,7 @@ const filterBarInnerClass =
 	`filter-bar__inner${distanceBounds ? '' : ' filter-bar__inner--two-cols'}`;
 ---
 
-<html lang="en">
+<html lang="pt-BR">
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
@@ -167,16 +167,16 @@ const filterBarInnerClass =
 					<h1 class="page-header__title">RunningCalendar</h1>
 				</header>
 
-				<section class="filter-bar grid__col grid__col--span-12" aria-label="Filter races">
+				<section class="filter-bar grid__col grid__col--span-12" aria-label="Filtrar corridas">
 					<div class={filterBarInnerClass}>
 						<div class="filter-bar__field">
 							<label class="filter-bar__label" for="race-location-filter">
 								<MapPin class="filter-bar__label-icon" size={16} aria-hidden={true} />
-								Location
+								Local
 							</label>
 							<div class="filter-bar__select-wrap">
 								<select id="race-location-filter" class="filter-bar__select" autocomplete="off">
-									<option value="">Any location</option>
+									<option value="">Qualquer local</option>
 									{locationOptions.map((loc) => (
 										<option value={loc}>{loc}</option>
 									))}
@@ -209,8 +209,8 @@ const filterBarInnerClass =
 					{races.map((r) => <RaceItem race={r} />)}
 				</ul>
 				<p id="race-list-empty" class="race-list-empty grid__col grid__col--span-12" role="status" hidden>
-					No races match your filters right now. Review location, distance, and dates—widening one of them
-					usually brings back options you can compare.
+					Nenhuma corrida corresponde aos filtros agora. Confira local, distância e datas — ampliar um deles
+					costuma trazer de volta opções para comparar.
 				</p>
 			</div>
 		</div>

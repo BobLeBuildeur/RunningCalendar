@@ -104,20 +104,20 @@
 	}
 
 	const collapsedLabel = $derived.by(() => {
-		if (!start && !end) return 'Select dates';
-		if (start && !end) return `${formatMDY(start)} — End date`;
+		if (!start && !end) return 'Selecione as datas';
+		if (start && !end) return `${formatMDY(start)} — Data final`;
 		if (start && end) return `${formatMDY(start)} — ${formatMDY(end)}`;
-		return 'Select dates';
+		return 'Selecione as datas';
 	});
 
 	const summaryText = $derived.by(() => {
 		if (start && end) return `${formatMDY(start)} — ${formatMDY(end)}`;
-		if (start) return `${formatMDY(start)} — End date`;
-		return 'No range selected';
+		if (start) return `${formatMDY(start)} — Data final`;
+		return 'Nenhum intervalo selecionado';
 	});
 
 	function monthLabel(y: number, m0: number): string {
-		return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(
+		return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(
 			new Date(y, m0, 1),
 		);
 	}
@@ -203,7 +203,7 @@
 		return 'none';
 	}
 
-	const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+	const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 </script>
 
 <div
@@ -251,7 +251,7 @@
 				class="drp__popover"
 				id="{id}-popover"
 				role="dialog"
-				aria-label="Choose date range"
+				aria-label="Escolher intervalo de datas"
 				data-testid="date-range-popover"
 			>
 				<div class="drp__popover-inner">
@@ -263,7 +263,7 @@
 										<button
 											type="button"
 											class="drp__nav"
-											aria-label="Previous month"
+											aria-label="Mês anterior"
 											data-testid="drp-prev-month"
 											onclick={() => shiftView(-1)}
 										>
@@ -278,7 +278,7 @@
 											<button
 												type="button"
 												class="drp__nav"
-												aria-label="Next month"
+												aria-label="Próximo mês"
 												data-testid="drp-next-month"
 												onclick={() => shiftView(1)}
 											>
@@ -287,7 +287,7 @@
 											<button
 												type="button"
 												class="drp__nav"
-												aria-label="Skip forward one month"
+												aria-label="Avançar um mês"
 												data-testid="drp-next-month-2"
 												onclick={() => shiftView(1)}
 											>
@@ -332,7 +332,7 @@
 							data-testid="drp-clear-footer"
 							onclick={clearRange}
 						>
-							Clear
+							Limpar
 						</button>
 						<div class="drp__footer-right">
 							{#if state === 'valid'}
@@ -345,9 +345,9 @@
 							{:else}
 								<span class="drp__summary" data-testid="drp-summary">{summaryText}</span>
 							{/if}
-							<button type="button" class="drp__btn drp__btn--ghost" onclick={clearRange}>Clear</button>
+							<button type="button" class="drp__btn drp__btn--ghost" onclick={clearRange}>Limpar</button>
 							<button type="button" class="drp__btn drp__btn--primary" data-testid="drp-apply" onclick={applyAndClose}>
-								Apply
+								Aplicar
 							</button>
 						</div>
 					</div>

@@ -58,9 +58,9 @@ export function formatMDY(key: DateKey | null): string {
 	const p = parseDateKey(key);
 	if (!p) return key;
 	const dt = new Date(p.y, p.m0, p.d);
-	return new Intl.DateTimeFormat('en-US', {
-		month: 'numeric',
+	return new Intl.DateTimeFormat('pt-BR', {
 		day: 'numeric',
-		year: '2-digit',
+		month: 'numeric',
+		year: 'numeric',
 	}).format(dt);
 }

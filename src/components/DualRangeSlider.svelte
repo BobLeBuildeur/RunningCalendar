@@ -111,7 +111,7 @@
 					max={startInputMax}
 					step={step}
 					value={start}
-					aria-label="Range start"
+					aria-label="Início do intervalo"
 					aria-valuemin={min}
 					aria-valuemax={startInputMax}
 					aria-valuenow={start}
@@ -132,7 +132,7 @@
 					max={max}
 					step={step}
 					value={end}
-					aria-label="Range end"
+					aria-label="Fim do intervalo"
 					aria-valuemin={endInputMin}
 					aria-valuemax={max}
 					aria-valuenow={end}
