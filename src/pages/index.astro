@@ -1,4 +1,5 @@
 ---
+import Calendar from '@lucide/astro/icons/calendar';
 import MapPin from '@lucide/astro/icons/map-pin';
 import RaceDateFilter from '../components/RaceDateFilter.svelte';
 import RaceDistanceFilter from '../components/RaceDistanceFilter.svelte';
@@ -164,7 +165,12 @@ const filterBarInnerClass =
 		<div class="layout__container">
 			<div class="grid">
 				<header class="grid__col grid__col--span-12 page-header">
-					<h1 class="page-header__title">RunningCalendar</h1>
+					<h1 class="page-header__title">
+						<span class="page-header__title-icon-wrap" aria-hidden="true">
+							<Calendar class="page-header__title-icon" size={36} />
+						</span>
+						RunningCalendar
+					</h1>
 				</header>
 
 				<section class="filter-bar grid__col grid__col--span-12" aria-label="Filter races">
