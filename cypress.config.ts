@@ -5,6 +5,7 @@ export default defineConfig({
 		baseUrl: 'http://127.0.0.1:4321',
 		supportFile: false,
 		specPattern: 'cypress/e2e/**/*.cy.ts',
-		video: false,
+		video: true,
+		videosFolder: 'artifacts/ui/cypress-videos',
 	},
 });
