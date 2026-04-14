@@ -21,7 +21,9 @@
   "dependencies": {
     "@astrojs/check": "^0.9.8",
     "@astrojs/svelte": "^8.0.4",
+    "@lucide/astro": "^1.8.0",
     "astro": "^6.1.5",
+    "lucide": "^1.8.0",
     "svelte": "^5.55.3",
     "typescript": "^5.9.3"
   },

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Calendar, Check, CircleAlert } from 'lucide';
 	import {
 		applyDayClick,
 		formatMDY,
@@ -7,6 +8,7 @@
 		toDateKey,
 		type DateKey,
 	} from '../lib/dateRangePickerLogic';
+	import LucideIcon from './LucideIcon.svelte';
 
 	let {
 		id = 'date-range-picker',
@@ -228,37 +230,17 @@
 			onclick={onTriggerClick}
 		>
 			<span class="drp__trigger-icon" aria-hidden="true">
-				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-					<rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2" />
-					<path d="M3 10h18" stroke="currentColor" stroke-width="2" />
-					<path d="M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-				</svg>
+				<LucideIcon icon={Calendar} size={18} aria-hidden={true} />
 			</span>
 			<span class="drp__trigger-text">{collapsedLabel}</span>
 			<span class="drp__trigger-trail">
 				{#if state === 'valid'}
 					<span class="drp__icon-ok" aria-hidden="true" data-testid="drp-valid-icon">
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-							<path
-								d="M20 6L9 17l-5-5"
-								stroke="currentColor"
-								stroke-width="2.2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							/>
-						</svg>
+						<LucideIcon icon={Check} size={18} strokeWidth={2.2} aria-hidden={true} />
 					</span>
 				{:else if state === 'invalid'}
 					<span class="drp__icon-warn" aria-hidden="true" data-testid="drp-invalid-icon">
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-							<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
-							<path
-								d="M12 7v6M12 16h.01"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-							/>
-						</svg>
+						<LucideIcon icon={CircleAlert} size={18} aria-hidden={true} />
 					</span>
 				{/if}
 			</span>
@@ -356,15 +338,7 @@
 							{#if state === 'valid'}
 								<span class="drp__summary drp__summary--ok" data-testid="drp-summary">
 									<span class="drp__icon-ok" aria-hidden="true">
-										<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-											<path
-												d="M20 6L9 17l-5-5"
-												stroke="currentColor"
-												stroke-width="2.2"
-												stroke-linecap="round"
-												stroke-linejoin="round"
-											/>
-										</svg>
+										<LucideIcon icon={Check} size={16} strokeWidth={2.2} aria-hidden={true} />
 									</span>
 									{summaryText}
 								</span>
