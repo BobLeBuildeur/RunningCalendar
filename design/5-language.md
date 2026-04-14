@@ -2,7 +2,7 @@
 
 Guidelines for **on-product copy** in RunningCalendar: tone, intent, and patterns so text feels consistent with the design system and helps runners decide what to do next.
 
-This document complements **`design/1-principles.md`** (UX principles) and **`design/2-tokens.md`** (visual tokens). Use **semantic text roles** from typography docs: primary text for main content, **`color.text.secondary`** (supporting) for hints, metadata, and empty states.
+This document complements **`design/1-principles.md`** (UX principles) and **`design/2-tokens.md`** (visual tokens). Use **semantic text roles** from typography docs: primary text for main content, **`color.text.secondary`** (supporting) for hints and secondary information.
 
 ---
 
@@ -22,7 +22,7 @@ Encourage action, but tie it to **real, useful information** (deadlines, distanc
 
 ### 2. Personalized → not generic
 
-Copy should reflect **what the user is doing** (e.g. filtering, comparing races) and support **different experience levels** without assuming jargon. Avoid one-size-fits-all slogans when a specific cue works better.
+Copy should reflect **what the user is doing** in context and support **different experience levels** without assuming jargon. Avoid one-size-fits-all slogans when a specific cue works better.
 
 ### 3. Decision-oriented
 
@@ -35,18 +35,7 @@ Ask implicitly: **“Should I run this race?”** Help users **evaluate options*
 | Do | Don’t |
 | --- | --- |
 | “Registration closes in 3 days” | “Hurry!!! Limited spots!!!” |
-| “No races match your current filters. Review location, distance, and dates—small changes often surface more to compare.” | “Oops! Nothing here! Try again!” |
-| Tie the next step to **filters or data** the UI already shows | Empty platitudes (“Keep searching!”) with no hint what to change |
-
----
-
-## Empty and edge states
-
-When **filters hide every race**, the UI should:
-
-- Use **supporting** text color (`color.text.secondary`) and appropriate body/meta size per **`design/4-typography.md`**.
-- **Not** appear when at least one race is visible.
-- Explain **that filters are the constraint**, and suggest **reviewing** location, distance, or date—aligned with the decision-oriented goal.
+| Tie the next step to **information the UI already surfaces** | Vague cheerleading with no actionable detail |
 
 ---
 
