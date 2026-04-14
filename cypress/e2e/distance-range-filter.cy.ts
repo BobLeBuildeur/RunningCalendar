@@ -45,6 +45,7 @@ describe('Distance range filter', () => {
 		setRangeEnd(10);
 		cy.get('[data-testid="race-distance-filter-range-end"]').should('have.value', '10');
 		cy.get('#race-distance-filter-value').should('contain', '10 km');
+		cy.get('[data-testid="race-distance-filter-range-start"]').should('have.attr', 'max', '10');
 		setRangeStart(25);
 		cy.get('[data-testid="race-distance-filter-range-start"]').should('have.value', '10');
 		cy.get('#race-distance-filter-value').should('contain', '10 km — 10 km');
@@ -64,8 +65,16 @@ describe('Distance range filter', () => {
 	it('clamps max so it cannot move below min', () => {
 		setRangeStart(20);
 		cy.get('#race-distance-filter-value').should('contain', '20 km');
+		cy.get('[data-testid="race-distance-filter-range-end"]').should('have.attr', 'min', '20');
 		setRangeEnd(8);
 		cy.get('[data-testid="race-distance-filter-range-end"]').should('have.value', '20');
 		cy.get('#race-distance-filter-value').should('contain', '20 km — 20 km');
+	});
+
+	it('exposes native bounds so start thumb cannot pass end and end cannot pass start', () => {
+		setRangeStart(15);
+		setRangeEnd(25);
+		cy.get('[data-testid="race-distance-filter-range-start"]').should('have.attr', 'max', '25');
+		cy.get('[data-testid="race-distance-filter-range-end"]').should('have.attr', 'min', '15');
 	});
 });
