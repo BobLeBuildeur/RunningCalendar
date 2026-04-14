@@ -33,6 +33,15 @@ svg {
 	max-width: 100%;
 }
 
+/* Lucide strokes use currentColor; align with label icons (e.g. map pin in the filter bar). */
+svg.lucide {
+	color: var(--color-primary);
+}
+
+.drp__icon-warn svg.lucide {
+	color: var(--color-danger);
+}
+
 input,
 button,
 textarea,

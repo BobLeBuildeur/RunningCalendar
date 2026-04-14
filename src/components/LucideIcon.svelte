@@ -23,7 +23,7 @@
 	width={size}
 	height={size}
 	stroke-width={strokeWidth}
-	class={className}
+	class={['lucide', className].filter(Boolean).join(' ')}
 >
 	{#each icon as [tag, attrs], i (i)}
 		<svelte:element this={tag} {...attrs} />
