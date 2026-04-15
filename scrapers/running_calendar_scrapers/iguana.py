@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 import requests
 from bs4 import BeautifulSoup
 
-from running_calendar_scrapers.csv_io import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
 
 CALENDAR_URL = "https://iguanasports.com.br/blogs/calendario-corridas-de-rua"
 BLOG_PREFIX = "/blogs/calendario-corridas-de-rua/"
@@ -91,7 +91,7 @@ def list_calendar_slugs(html: str) -> list[str]:
 
 
 def _parse_event_datetime(html: str) -> tuple[datetime, str]:
-	"""Return (aware datetime America/Sao_Paulo), display string matching races.csv."""
+	"""Return (aware datetime America/Sao_Paulo), display string matching stored sort_key."""
 	m = re.search(
 		r"(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})\s+(\d{2}):(\d{2})",
 		html,
@@ -221,9 +221,9 @@ def scrape_iguana_calendar(*, session: requests.Session | None = None) -> list[S
 	valid_providers = load_valid_provider_slugs()
 	valid_types = load_valid_type_slugs()
 	if "iguana-sports" not in valid_providers:
-		raise RuntimeError("providers.csv must define iguana-sports")
+		raise RuntimeError("public.providers must include iguana-sports")
 	if "road" not in valid_types:
-		raise RuntimeError("types.csv must define road")
+		raise RuntimeError("public.types must include road")
 
 	r = session.get(CALENDAR_URL, timeout=60)
 	r.raise_for_status()

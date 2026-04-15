@@ -1,4 +1,4 @@
-"""Merge scraped race rows into repo CSVs with normalization and deduplication."""
+"""Normalize scraped race rows and partition new vs duplicate (Supabase or temp CSV fixtures)."""
 
 from __future__ import annotations
 
@@ -8,13 +8,18 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
-from running_calendar_scrapers.csv_io import repo_root
+from running_calendar_scrapers.db_ref import (
+	load_slug_to_km,
+	load_valid_provider_slugs,
+	load_valid_type_slugs,
+)
 from running_calendar_scrapers.iguana import RACES_HEADER, parse_races_csv
 
 __all__ = [
 	"normalize_detail_url_for_key",
 	"normalize_race_row",
 	"merge_new_races",
+	"partition_scraped_races",
 	"write_races_csv",
 ]
 
@@ -87,17 +92,14 @@ def _existing_urls(rows: list[dict[str, str]]) -> set[str]:
 	return urls
 
 
-def merge_new_races(
-	new_rows: list[dict[str, str]],
-	existing_rows: list[dict[str, str]],
-	*,
-	data_dir: Path,
-) -> tuple[list[dict[str, str]], list[str], list[str]]:
-	"""
-	Merge normalized new rows into existing; skip duplicates.
+def _validation_context(data_dir: Path | None) -> tuple[dict[str, float], set[str], set[str], set[str]]:
+	if data_dir is None:
+		slug_to_km = load_slug_to_km()
+		valid_dist = set(slug_to_km.keys())
+		valid_types = load_valid_type_slugs()
+		valid_providers = load_valid_provider_slugs()
+		return slug_to_km, valid_dist, valid_types, valid_providers
 
-	Returns (combined_rows_sorted, duplicate_messages, skip_messages).
-	"""
 	distances_path = data_dir / "distances.csv"
 	slug_to_km = _slug_order(distances_path)
 	valid_dist = set(slug_to_km.keys())
@@ -110,8 +112,27 @@ def merge_new_races(
 	with prov_path.open(encoding="utf-8", newline="") as f:
 		valid_providers = {r["slug"].strip() for r in csv.DictReader(f) if r.get("slug")}
 
-	existing_urls = _existing_urls(existing_rows)
-	combined = [dict(r) for r in existing_rows]
+	return slug_to_km, valid_dist, valid_types, valid_providers
+
+
+def partition_scraped_races(
+	new_rows: list[dict[str, str]],
+	existing_detail_url_keys: set[str],
+	*,
+	data_dir: Path | None = None,
+) -> tuple[list[dict[str, str]], list[str], list[str]]:
+	"""
+	Normalize scraped rows and return only those whose ``detailUrl`` is not in
+	``existing_detail_url_keys`` (normalized keys from :func:`normalize_detail_url_for_key`).
+
+	``existing_detail_url_keys`` should include every URL already present in the target
+	(e.g. Supabase ``races.detail_url`` or merged CSV rows).
+
+	Returns (rows_to_insert_sorted, duplicate_messages, skip_messages).
+	"""
+	slug_to_km, valid_dist, valid_types, valid_providers = _validation_context(data_dir)
+	seen = set(existing_detail_url_keys)
+	to_add: list[dict[str, str]] = []
 	duplicate_msgs: list[str] = []
 	skip_msgs: list[str] = []
 
@@ -130,16 +151,38 @@ def merge_new_races(
 
 		du_key = normalize_detail_url_for_key(norm["detailUrl"])
 
-		if du_key and du_key in existing_urls:
+		if du_key and du_key in seen:
 			duplicate_msgs.append(
 				f"duplicate (detailUrl): {norm['detailUrl']!r} — not merged",
 			)
 			continue
 
-		combined.append(norm)
+		to_add.append(norm)
 		if du_key:
-			existing_urls.add(du_key)
+			seen.add(du_key)
 
+	to_add.sort(key=lambda r: r["sortKey"])
+	return to_add, duplicate_msgs, skip_msgs
+
+
+def merge_new_races(
+	new_rows: list[dict[str, str]],
+	existing_rows: list[dict[str, str]],
+	*,
+	data_dir: Path | None = None,
+) -> tuple[list[dict[str, str]], list[str], list[str]]:
+	"""
+	Merge normalized new rows into existing; skip duplicates.
+
+	Returns (combined_rows_sorted, duplicate_messages, skip_messages).
+	"""
+	existing_urls = _existing_urls(existing_rows)
+	to_add, duplicate_msgs, skip_msgs = partition_scraped_races(
+		new_rows,
+		existing_urls,
+		data_dir=data_dir,
+	)
+	combined = [dict(r) for r in existing_rows] + to_add
 	combined.sort(key=lambda r: r["sortKey"])
 	return combined, duplicate_msgs, skip_msgs
 

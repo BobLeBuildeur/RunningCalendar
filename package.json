@@ -10,7 +10,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "validate-csv": "node scripts/validate-csv.mjs",
+    "validate-db": "node scripts/validate-db.mjs",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run",
     "test:e2e": "start-server-and-test preview:e2e http://127.0.0.1:4321/RunningCalendar/ \"cypress run --spec cypress/e2e/date-range-picker.cy.ts\"",
@@ -24,10 +24,12 @@
     "@lucide/astro": "^1.8.0",
     "astro": "^6.1.5",
     "lucide": "^1.8.0",
+    "pg": "^8.13.1",
     "svelte": "^5.55.3",
     "typescript": "^5.9.3"
   },
   "devDependencies": {
+    "@types/pg": "^8.11.10",
     "cypress": "^15.13.1",
     "start-server-and-test": "^3.0.2"
   }

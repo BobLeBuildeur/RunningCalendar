@@ -31,3 +31,13 @@ npm run preview
 
 - [Astro](https://astro.build/) (minimal template)
 - Plain HTML in pages for now (no separate CSS)
+
+## Data
+
+The home page is built from **Supabase (PostgreSQL)** at **`npm run build`** time (`loadCalendar()` in `src/data/races.ts`). Set **`RUNNINGCALENDAR_DATABASE_URL`**, **`DATABASE_URL`**, or **`SUPABASE_DB_URL`** to your **session mode** Postgres URI (Project Settings → Database). For **GitHub Pages**, store that URI in a repo secret and inject it in the deploy workflow.
+
+There are **no checked-in CSV data files**; **[data model](docs/data-model.md)** describes the schema and how scraper output maps to tables.
+
+Python scrapers under **`scrapers/`** validate foreign keys against the database and can insert new races with **`--save-to`** (see `docs/data-model.md`).
+
+**Schema check:** with the same database env vars set, run **`npm run validate-db`** to verify slug formats, URLs, FK integrity, and unique `detail_url` values in `public.*`.

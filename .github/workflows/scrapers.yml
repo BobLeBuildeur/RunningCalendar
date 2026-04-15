@@ -21,20 +21,27 @@ jobs:
 
       - name: Run pytest
         working-directory: scrapers
+        env:
+          RUNNINGCALENDAR_DATABASE_URL: ${{ secrets.RUNNINGCALENDAR_DATABASE_URL }}
         run: python3 -m pytest tests/ -q
 
       - name: Run Iguana scraper (stdout)
         working-directory: scrapers
+        env:
+          RUNNINGCALENDAR_DATABASE_URL: ${{ secrets.RUNNINGCALENDAR_DATABASE_URL }}
         run: python3 run_scrapers.py run iguana | head -n 5
 
       - name: Run Yescom scraper (stdout)
         working-directory: scrapers
+        env:
+          RUNNINGCALENDAR_DATABASE_URL: ${{ secrets.RUNNINGCALENDAR_DATABASE_URL }}
         run: python3 run_scrapers.py run yescom --year 2026 | head -n 5
 
       - name: Run Corre Brasil scraper (stdout)
         working-directory: scrapers
+        env:
+          RUNNINGCALENDAR_DATABASE_URL: ${{ secrets.RUNNINGCALENDAR_DATABASE_URL }}
         run: python3 run_scrapers.py run corre_brasil --year 2026 | head -n 5
 
-      - name: Merge dry-run (no new rows expected)
-        working-directory: scrapers
-        run: python3 run_scrapers.py run iguana --save-to
+      # Scrapers load FK metadata from PostgreSQL; set RUNNINGCALENDAR_DATABASE_URL in repo secrets.
+      # --save-to writes to Supabase; same URI as build / validate-db.

@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 
 import requests
 
-from running_calendar_scrapers.csv_io import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
 from running_calendar_scrapers.iguana import ScrapedRace, format_races_csv
 
 GRAPHQL_URL = "https://www.runningland.com.br/graphql"
@@ -254,10 +254,10 @@ def scrape_running_land_calendar(
 	valid_providers = load_valid_provider_slugs()
 	valid_types = load_valid_type_slugs()
 	if "running-land" not in valid_providers:
-		raise RuntimeError("providers.csv must define running-land")
+		raise RuntimeError("public.providers must include running-land")
 	for need in ("road", "trail", "adventure"):
 		if need not in valid_types:
-			raise RuntimeError(f"types.csv must define {need}")
+			raise RuntimeError(f"public.types must include {need}")
 
 	if city_map is None or region_map is None or modality_map is None:
 		city_map, region_map, modality_map = load_running_land_option_maps(session)

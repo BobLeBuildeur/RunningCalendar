@@ -1,13 +1,13 @@
 ---
-description: Slug format and PK/FK rules for CSV entities
-globs: src/data/**/*.csv, scrapers/**/*.py, scripts/**/*.mjs
+description: Slug format and PK/FK rules for database entities
+globs: scrapers/**/*.py, scripts/**/*.mjs
 alwaysApply: false
 ---
 
 # Entity slugs (PK / FK)
 
-- **`providers.slug`**, **`types.slug`**, and **`distances.slug`** are primary keys. **`races.typeSlug`**, **`races.providerSlug`**, and tokens in **`races.distanceSlugs`** are foreign keys to those slugs.
-- **Format** (enforced by `npm run validate-csv`):
+- **`providers.slug`**, **`types.slug`**, and **`distances.slug`** are primary keys. **`races.type_slug`**, **`races.provider_slug`**, and **`race_distances.distance_slug`** reference those slugs.
+- **Format** (enforced by `npm run validate-db`):
   - Lowercase ASCII letters and digits only, separated by single hyphens (kebab-case).
   - Pattern: `^[a-z0-9]+(-[a-z0-9]+)*$` — no spaces, underscores, or diacritics.
 - **Stability**: Prefer stable slugs from upstream sources when they already match this format; otherwise derive by normalizing (lowercase, replace non-alphanumeric runs with `-`, collapse repeats, trim hyphens).

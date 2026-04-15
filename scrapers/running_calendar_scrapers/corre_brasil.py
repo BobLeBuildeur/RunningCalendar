@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from running_calendar_scrapers.csv_io import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
 from running_calendar_scrapers.iguana import ScrapedRace, format_races_csv
 
 CALENDAR_URL = "https://www.correbrasil.com.br/calendario-corridas"
@@ -18,7 +18,7 @@ USER_AGENT = "RunningCalendarBot/1.0 (+https://github.com/boblebuildeur/RunningC
 
 _SITE_HOST = "correbrasil.com.br"
 
-# When the site lists only the state name (no City/UF), map to UF for non-empty `state` (validate-csv).
+# When the site lists only the state name (no City/UF), map to UF for non-empty `state` (validate-db).
 _BR_STATE_NAME_TO_UF: dict[str, str] = {
 	"acre": "AC",
 	"alagoas": "AL",
@@ -247,8 +247,15 @@ def _collect_links(item) -> list[str]:
 	return seen
 
 
-def scrape_corre_brasil_calendar_html(html: str, *, year: int, calendar_url: str = CALENDAR_URL) -> list[ScrapedRace]:
-	km_to_slug = load_distance_slugs_by_km()
+def scrape_corre_brasil_calendar_html(
+	html: str,
+	*,
+	year: int,
+	calendar_url: str = CALENDAR_URL,
+	km_to_slug: dict[float, str] | None = None,
+) -> list[ScrapedRace]:
+	if km_to_slug is None:
+		km_to_slug = load_distance_slugs_by_km()
 	soup = BeautifulSoup(html, "html.parser")
 	items = soup.select("div.wixui-repeater__item")
 	out: list[ScrapedRace] = []
@@ -305,10 +312,10 @@ def scrape_corre_brasil_calendar(year: int, *, session: requests.Session | None 
 	valid_providers = load_valid_provider_slugs()
 	valid_types = load_valid_type_slugs()
 	if "corre-brasil" not in valid_providers:
-		raise RuntimeError("providers.csv must define corre-brasil")
+		raise RuntimeError("public.providers must include corre-brasil")
 	for need in ("road", "trail", "adventure"):
 		if need not in valid_types:
-			raise RuntimeError(f"types.csv must define {need}")
+			raise RuntimeError(f"public.types must include {need}")
 	html = fetch_corre_brasil_calendar_html(session=session)
 	return scrape_corre_brasil_calendar_html(html, year=year)
 
