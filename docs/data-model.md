@@ -131,9 +131,8 @@ Row Level Security (RLS) is enabled on these tables. Policies allow **`anon` and
 | `races.csv` (scalar columns) | `public.races` (`sort_key`, `detail_url`, …) |
 | `races.csv` → `distanceSlugs` | `public.race_distances` (one insert per slug after splitting on `;`) |
 
-### Tooling and SQL in the repo
+### Populating the database from CSVs
 
-- **`scripts/generate-supabase-seed-sql.mjs`** — reads `src/data/*.csv` and prints SQL (`INSERT`s plus `race_distances` rows keyed off `detail_url`). Use it to regenerate seed output when CSVs change.
-- **`supabase/migrations/`** — schema migration (`running_calendar_schema`) and optional full seed (`20260415120000_seed_from_csv.sql`). Very large seeds may need to be run in smaller batches (see `supabase/seed_batches/`) if your client enforces a query size limit.
+The repository does **not** ship generated SQL or migration artifacts for bulk loading. To sync Supabase with `src/data/*.csv`, apply the schema (for example migration `running_calendar_schema` on the project) and load data yourself: insert reference rows (`providers`, `types`, `distances`), insert `races` with `detail_url` matching `detailUrl`, then insert `race_distances` rows by splitting each race’s `distanceSlugs` on `;` and joining to `distances.slug`. Split large scripts if your SQL client enforces a payload limit.
 
 The static site continues to use **only the CSVs** unless you add a separate data layer that queries Supabase.
