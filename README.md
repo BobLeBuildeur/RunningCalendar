@@ -31,3 +31,7 @@ npm run preview
 
 - [Astro](https://astro.build/) (minimal template)
 - Plain HTML in pages for now (no separate CSS)
+
+## Data
+
+Race data is normalized in **`src/data/*.csv`** files and loaded at build time. The **[data model](docs/data-model.md)** also describes the **Supabase (PostgreSQL)** layout: the same entities, with races and distances linked by a **`race_distances`** junction table instead of a semicolon-separated column. The deployed static site does not query the database at runtime unless you add that separately.
