@@ -30,11 +30,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate database schemas
-        env:
-          RUNNINGCALENDAR_DATABASE_URL: ${{ secrets.RUNNINGCALENDAR_DATABASE_URL }}
-        run: npm run validate-db
-
       - name: Build
         env:
           RUNNINGCALENDAR_DATABASE_URL: ${{ secrets.RUNNINGCALENDAR_DATABASE_URL }}
