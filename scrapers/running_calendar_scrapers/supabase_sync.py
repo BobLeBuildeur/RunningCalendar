@@ -2,23 +2,11 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
+from running_calendar_scrapers.db_config import database_url_from_env
 from running_calendar_scrapers.merge_csv import normalize_detail_url_for_key, partition_scraped_races
-
-
-def database_url_from_env() -> str:
-	"""Return connection URI from ``RUNNINGCALENDAR_DATABASE_URL`` or ``DATABASE_URL``."""
-	for key in ("RUNNINGCALENDAR_DATABASE_URL", "DATABASE_URL"):
-		v = (os.environ.get(key) or "").strip()
-		if v:
-			return v
-	raise RuntimeError(
-		"Set RUNNINGCALENDAR_DATABASE_URL (or DATABASE_URL) to a PostgreSQL connection URI "
-		"(e.g. Supabase session mode: postgresql://postgres.[ref]:[password]@...:5432/postgres).",
-	)
 
 
 def fetch_existing_detail_url_keys(conn: Any) -> set[str]:
@@ -85,13 +73,13 @@ def insert_races_and_distances(
 def sync_scraped_rows_to_supabase(
 	rows: list[dict[str, str]],
 	*,
-	data_dir: Path,
+	data_dir: Path | None = None,
 ) -> tuple[int, list[str]]:
 	"""
 	Load existing ``detail_url`` keys from Supabase, insert only new normalized ``rows``.
 
-	``data_dir`` is the path containing ``distances.csv`` / ``types.csv`` / ``providers.csv``
-	(usually ``<repo>/src/data``).
+	FK validation uses ``public.distances``, ``public.types``, and ``public.providers`` (or
+	pass ``data_dir`` with the same three ``*.csv`` files for offline tests).
 
 	Returns (number_of_races_inserted, log_lines).
 	"""

@@ -1,4 +1,4 @@
-"""Merge scraped race rows into repo CSVs with normalization and deduplication."""
+"""Normalize scraped race rows and partition new vs duplicate (Supabase or temp CSV fixtures)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,11 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
-from running_calendar_scrapers.csv_io import repo_root
+from running_calendar_scrapers.db_ref import (
+	load_slug_to_km,
+	load_valid_provider_slugs,
+	load_valid_type_slugs,
+)
 from running_calendar_scrapers.iguana import RACES_HEADER, parse_races_csv
 
 __all__ = [
@@ -88,7 +92,14 @@ def _existing_urls(rows: list[dict[str, str]]) -> set[str]:
 	return urls
 
 
-def _validation_context(data_dir: Path) -> tuple[dict[str, float], set[str], set[str], set[str]]:
+def _validation_context(data_dir: Path | None) -> tuple[dict[str, float], set[str], set[str], set[str]]:
+	if data_dir is None:
+		slug_to_km = load_slug_to_km()
+		valid_dist = set(slug_to_km.keys())
+		valid_types = load_valid_type_slugs()
+		valid_providers = load_valid_provider_slugs()
+		return slug_to_km, valid_dist, valid_types, valid_providers
+
 	distances_path = data_dir / "distances.csv"
 	slug_to_km = _slug_order(distances_path)
 	valid_dist = set(slug_to_km.keys())
@@ -108,7 +119,7 @@ def partition_scraped_races(
 	new_rows: list[dict[str, str]],
 	existing_detail_url_keys: set[str],
 	*,
-	data_dir: Path,
+	data_dir: Path | None = None,
 ) -> tuple[list[dict[str, str]], list[str], list[str]]:
 	"""
 	Normalize scraped rows and return only those whose ``detailUrl`` is not in
@@ -158,7 +169,7 @@ def merge_new_races(
 	new_rows: list[dict[str, str]],
 	existing_rows: list[dict[str, str]],
 	*,
-	data_dir: Path,
+	data_dir: Path | None = None,
 ) -> tuple[list[dict[str, str]], list[str], list[str]]:
 	"""
 	Merge normalized new rows into existing; skip duplicates.

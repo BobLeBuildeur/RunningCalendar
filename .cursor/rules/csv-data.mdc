@@ -1,11 +1,11 @@
 ---
-description: CSV entity data under src/data must stay normalized and non-duplicated
-globs: src/data/**/*.csv
+description: Calendar entity data must stay normalized in PostgreSQL (no duplicate facts)
+globs: scrapers/**/*.py, scripts/**/*.mjs
 alwaysApply: false
 ---
 
-# CSV data (RunningCalendar)
+# Calendar data (RunningCalendar)
 
-- **Single source of truth**: Each fact belongs in one place. Do not duplicate the same information across columns (for example, do not store a separate display date when `sortKey` already holds the ISO date-time).
+- **Single source of truth**: PostgreSQL on Supabase. Each fact belongs in one place. Do not duplicate the same information across columns (for example, do not store a separate display date when `sort_key` already holds the ISO date-time).
 - **Normalized references**: Use slugs to reference `types`, `distances`, and `providers`; never repeat full labels or URLs where a slug FK suffices (except where the schema explicitly stores human-readable text, such as race `name` or city fields).
-- **No stray columns**: Only the columns documented in `docs/data-model.md` (and enforced by `npm run validate-csv`) may appear. If you need a new field, update the docs, validation script, loaders, and scrapers together.
+- **Schema changes**: If you need a new field, update `docs/data-model.md`, migrations on Supabase, `npm run validate-db`, loaders, and scrapers together.

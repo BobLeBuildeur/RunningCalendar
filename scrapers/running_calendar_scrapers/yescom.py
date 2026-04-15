@@ -8,7 +8,7 @@ from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
-from running_calendar_scrapers.csv_io import load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.db_ref import load_valid_provider_slugs, load_valid_type_slugs
 from running_calendar_scrapers.iguana import RACES_HEADER, ScrapedRace, scraped_to_csv_rows
 
 CALENDAR_ASP = "https://www.yescom.com.br/yescom/novosite/codigos/calendario_2016.asp"
@@ -87,9 +87,9 @@ def scrape_yescom_calendar(year: int, *, session: requests.Session | None = None
 	valid_providers = load_valid_provider_slugs()
 	valid_types = load_valid_type_slugs()
 	if "yescom" not in valid_providers:
-		raise RuntimeError("providers.csv must define yescom")
+		raise RuntimeError("public.providers must include yescom")
 	if "road" not in valid_types:
-		raise RuntimeError("types.csv must define road")
+		raise RuntimeError("public.types must include road")
 
 	html = fetch_yescom_calendar_html(year, session=session)
 	soup = BeautifulSoup(html, "html.parser")

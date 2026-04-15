@@ -2,7 +2,6 @@
 description: Run a data scraper for one provider and insert new races into Supabase
 globs:
   - "scrapers/**"
-  - "src/data/**/*.csv"
 ---
 
 # Scrape provider and update Supabase
@@ -11,7 +10,7 @@ When the user asks to **scrape** (or **refresh**) race data for a **given provid
 
 ## 1. Resolve the scraper name
 
-Scraper modules live under `scrapers/running_calendar_scrapers/` and are invoked by **Python module name** (filename without `.py`), not necessarily the same string as `providers.slug` in `src/data/providers.csv`.
+Scraper modules live under `scrapers/running_calendar_scrapers/` and are invoked by **Python module name** (filename without `.py`), not necessarily the same string as `providers.slug` in Supabase.
 
 - List available scrapers from the repo root:
 
@@ -23,7 +22,7 @@ cd scrapers && python3 run_scrapers.py list
 
 ## 2. Configure database access
 
-Set **`RUNNINGCALENDAR_DATABASE_URL`** or **`DATABASE_URL`** to your Supabase **PostgreSQL** connection string (session mode URI from **Project Settings → Database**). Install scraper deps including `psycopg2-binary` (`pip install -r scrapers/requirements.txt`).
+Set **`RUNNINGCALENDAR_DATABASE_URL`**, **`DATABASE_URL`**, or **`SUPABASE_DB_URL`** to your Supabase **PostgreSQL** connection string (session mode URI from **Project Settings → Database**). Install scraper deps including `psycopg2-binary` (`pip install -r scrapers/requirements.txt`).
 
 ## 3. Run the scraper and sync to Supabase
 
@@ -33,8 +32,8 @@ From `scrapers/`:
 python3 run_scrapers.py run <SCRAPER_NAME> --save-to
 ```
 
-- **`--save-to`** inserts **new** races into **`public.races`** and **`public.race_distances`** (deduped by normalized `detail_url`). It does **not** write `src/data/races.csv`.
-- FK validation still uses **`src/data/distances.csv`**, **`types.csv`**, and **`providers.csv`** — keep those in sync with what exists in Supabase.
+- **`--save-to`** inserts **new** races into **`public.races`** and **`public.race_distances`** (deduped by normalized `detail_url`).
+- FK validation uses **`public.distances`**, **`public.types`**, and **`public.providers`**.
 - Scrapers that take a calendar year accept **`--year`** (default in the CLI is **2026**). Example:
 
 ```bash
@@ -43,16 +42,14 @@ python3 run_scrapers.py run yescom --year 2026 --save-to
 
 The command prints duplicate/skip notices and how many rows were inserted.
 
-## 4. Validate CSVs (site build) if you also changed data files
-
-If you edited `src/data/*.csv`:
+## 4. Validate the database and site build (optional)
 
 ```bash
 cd ..   # repo root
-npm run validate-csv
+npm run validate-db
 npm run build
 ```
 
 ## 5. Commit
 
-Commit any intentional CSV or scraper code changes with a clear message. Database changes from `--save-to` live in Supabase, not in git.
+Commit scraper code changes with a clear message. Database changes from `--save-to` live in Supabase, not in git.

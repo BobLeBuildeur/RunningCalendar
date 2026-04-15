@@ -36,8 +36,8 @@ npm run preview
 
 The home page is built from **Supabase (PostgreSQL)** at **`npm run build`** time (`loadCalendar()` in `src/data/races.ts`). Set **`RUNNINGCALENDAR_DATABASE_URL`**, **`DATABASE_URL`**, or **`SUPABASE_DB_URL`** to your **session mode** Postgres URI (Project Settings → Database). For **GitHub Pages**, store that URI in a repo secret and inject it in the deploy workflow.
 
-**`src/data/*.csv`** files are kept for **`npm run validate-csv`** and for Python scraper FK validation; they are not used to render the site. See **[data model](docs/data-model.md)** for the schema and CSV ↔ table mapping.
+There are **no checked-in CSV data files**; **[data model](docs/data-model.md)** describes the schema and how scraper output maps to tables.
 
-Python scrapers under **`scrapers/`** can insert new races with **`--save-to`** (see `docs/data-model.md`).
+Python scrapers under **`scrapers/`** validate foreign keys against the database and can insert new races with **`--save-to`** (see `docs/data-model.md`).
 
-**Parity check:** with `DATABASE_URL` (or `RUNNINGCALENDAR_DATABASE_URL`) set, run **`npm run compare-db-to-csv`** to assert `public.*` matches `src/data/*.csv` (same race keys as `detailUrl`, distance slugs ordered by `km`).
+**Schema check:** with the same database env vars set, run **`npm run validate-db`** to verify slug formats, URLs, FK integrity, and unique `detail_url` values in `public.*`.

@@ -9,6 +9,7 @@ from running_calendar_scrapers.corre_brasil import (
 	_parse_place_line,
 	scrape_corre_brasil_calendar_html,
 )
+from running_calendar_scrapers.db_ref import fixture_km_to_slug_corre_brasil_repeater
 
 
 def test_parse_day_month_variants():
@@ -29,7 +30,12 @@ def test_parse_place():
 def test_fixture_repeater_snapshot():
 	fixture = Path(__file__).parent / "fixtures" / "corre_brasil_repeater.html"
 	html = fixture.read_text(encoding="utf-8")
-	races = scrape_corre_brasil_calendar_html(html, year=2026, calendar_url="https://www.correbrasil.com.br/calendario-corridas")
+	races = scrape_corre_brasil_calendar_html(
+		html,
+		year=2026,
+		calendar_url="https://www.correbrasil.com.br/calendario-corridas",
+		km_to_slug=fixture_km_to_slug_corre_brasil_repeater(),
+	)
 	by_name = {r.name: r for r in races}
 	assert len(races) == 12
 	gv = by_name["GV LIFE RUN GREEN VALLEY"]

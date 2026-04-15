@@ -6,9 +6,10 @@ Each scrapper is a module ``running_calendar_scrapers/<name>.py`` defining
 discovered by filename (see ``list`` command).
 
 Use ``--save-to`` to insert scraped races into **Supabase** (``public.races`` and
-``race_distances``): rows are normalized against ``src/data/*.csv`` FK lists, duplicates
-by ``detail_url`` skipped (reported on stdout). Requires ``RUNNINGCALENDAR_DATABASE_URL``
-or ``DATABASE_URL`` (PostgreSQL URI, e.g. from Supabase).
+``race_distances``): rows are normalized against ``public.distances``, ``public.types``,
+and ``public.providers``, duplicates by ``detail_url`` skipped (reported on stdout).
+Requires ``RUNNINGCALENDAR_DATABASE_URL``, ``DATABASE_URL``, or ``SUPABASE_DB_URL``
+(PostgreSQL URI, e.g. from Supabase).
 
 Examples::
 
@@ -31,7 +32,7 @@ import importlib
 import sys
 from pathlib import Path
 
-from running_calendar_scrapers.csv_io import repo_root
+from running_calendar_scrapers.db_ref import repo_root
 from running_calendar_scrapers.iguana import parse_races_csv
 from running_calendar_scrapers.supabase_sync import sync_scraped_rows_to_supabase
 
@@ -103,7 +104,8 @@ def main() -> None:
 		action="store_true",
 		help=(
 			"Insert new races into Supabase (public.races + race_distances). "
-			"Uses src/data/*.csv for FK validation. Set RUNNINGCALENDAR_DATABASE_URL or DATABASE_URL. "
+			"FK validation uses public.distances/types/providers. "
+			"Set RUNNINGCALENDAR_DATABASE_URL, DATABASE_URL, or SUPABASE_DB_URL. "
 			"Omit to print CSV to stdout."
 		),
 	)
@@ -124,12 +126,11 @@ def main() -> None:
 		blobs.append(getattr(mod, "run")(extra))
 
 	if args.save_to:
-		data_dir = repo_root() / "src/data"
 		new_rows: list[dict[str, str]] = []
 		for text in blobs:
 			new_rows.extend(parse_races_csv(text))
 		try:
-			_, log_lines = sync_scraped_rows_to_supabase(new_rows, data_dir=data_dir)
+			_, log_lines = sync_scraped_rows_to_supabase(new_rows)
 		except Exception as e:
 			print(f"Supabase sync failed: {e}", file=sys.stderr)
 			raise SystemExit(1) from e

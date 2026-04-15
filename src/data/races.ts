@@ -2,8 +2,7 @@
  * Race listings: loaded at **build time** from PostgreSQL (Supabase) via `loadCalendar()`.
  * Reference data shape matches docs/data-model.md (public.races, race_distances, distances, types, providers).
  *
- * Legacy CSV files under `src/data/*.csv` remain for `npm run validate-csv` and Python scraper FK checks;
- * the site no longer reads races from CSV for rendering.
+ * Reference data lives only in PostgreSQL (Supabase); use `npm run validate-db` for integrity checks.
  */
 import { loadCalendarFromDatabase } from '../lib/calendarDb';
 

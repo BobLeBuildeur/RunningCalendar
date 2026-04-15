@@ -30,8 +30,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate CSV schemas
-        run: npm run validate-csv
+      - name: Validate database schemas
+        env:
+          RUNNINGCALENDAR_DATABASE_URL: ${{ secrets.RUNNINGCALENDAR_DATABASE_URL }}
+        run: npm run validate-db
 
       - name: Build
         env:
