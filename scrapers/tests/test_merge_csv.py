@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from running_calendar_scrapers.merge_csv import merge_new_races, normalize_detail_url_for_key
+from running_calendar_scrapers.merge_csv import (
+	merge_new_races,
+	normalize_detail_url_for_key,
+	partition_scraped_races,
+)
 
 
 def test_normalize_detail_url_for_key():
@@ -75,3 +79,34 @@ def test_merge_adds_new_row(tmp_path: Path):
 	assert len(combined) == 1
 	assert combined[0]["name"] == "New Race"
 	assert not dups
+
+
+def test_partition_matches_merge_add(tmp_path: Path):
+	data_dir = tmp_path / "data"
+	data_dir.mkdir()
+	(data_dir / "distances.csv").write_text(
+		"slug,km,description\n5km,50,\n",
+		encoding="utf-8",
+	)
+	(data_dir / "types.csv").write_text("slug,type\nroad,Road\n", encoding="utf-8")
+	(data_dir / "providers.csv").write_text(
+		"slug,name,website\np1,P1,https://p1\n",
+		encoding="utf-8",
+	)
+	new_row = {
+		"sortKey": "2026-02-01T10:00",
+		"city": "Y",
+		"state": "RJ",
+		"country": "Brasil",
+		"name": "New  Race",
+		"typeSlug": "road",
+		"distanceSlugs": "5km",
+		"providerSlug": "p1",
+		"detailUrl": "https://b.com/y",
+	}
+	to_add, dups, skips = partition_scraped_races([new_row], set(), data_dir=data_dir)
+	assert len(to_add) == 1
+	assert to_add[0]["name"] == "New Race"
+	combined, d2, _sk = merge_new_races([new_row], [], data_dir=data_dir)
+	assert combined == to_add
+	assert dups == d2

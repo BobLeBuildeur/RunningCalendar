@@ -5,8 +5,10 @@ Each scrapper is a module ``running_calendar_scrapers/<name>.py`` defining
 ``run(argv: list[str] | None = None) -> str`` returning CSV text. Modules are
 discovered by filename (see ``list`` command).
 
-Use ``--save-to`` to merge scraper output into ``src/data/races.csv`` (or a given
-path): rows are normalized, duplicates skipped (reported on stdout), new rows appended.
+Use ``--save-to`` to insert scraped races into **Supabase** (``public.races`` and
+``race_distances``): rows are normalized against ``src/data/*.csv`` FK lists, duplicates
+by ``detail_url`` skipped (reported on stdout). Requires ``RUNNINGCALENDAR_DATABASE_URL``
+or ``DATABASE_URL`` (PostgreSQL URI, e.g. from Supabase).
 
 Examples::
 
@@ -31,7 +33,7 @@ from pathlib import Path
 
 from running_calendar_scrapers.csv_io import repo_root
 from running_calendar_scrapers.iguana import parse_races_csv
-from running_calendar_scrapers.merge_csv import load_races_csv_file, merge_new_races, write_races_csv
+from running_calendar_scrapers.supabase_sync import sync_scraped_rows_to_supabase
 
 
 def _package_dir() -> Path:
@@ -96,17 +98,13 @@ def main() -> None:
 		default=2026,
 		help="Calendar year for scrapers that need it (e.g. yescom); others ignore it",
 	)
-	default_races = repo_root() / "src/data/races.csv"
 	p_run.add_argument(
 		"--save-to",
-		nargs="?",
-		type=Path,
-		default=None,
-		const=default_races,
-		metavar="PATH",
+		action="store_true",
 		help=(
-			"Merge scraped races into this CSV (default: <repo>/src/data/races.csv). "
-			"Normalizes rows, skips duplicates (prints notice). Omit to print CSV to stdout."
+			"Insert new races into Supabase (public.races + race_distances). "
+			"Uses src/data/*.csv for FK validation. Set RUNNINGCALENDAR_DATABASE_URL or DATABASE_URL. "
+			"Omit to print CSV to stdout."
 		),
 	)
 
@@ -125,24 +123,18 @@ def main() -> None:
 		mod = importlib.import_module(f"running_calendar_scrapers.{name}")
 		blobs.append(getattr(mod, "run")(extra))
 
-	if args.save_to is not None:
-		out_path = args.save_to.resolve()
-		data_dir = out_path.parent
+	if args.save_to:
+		data_dir = repo_root() / "src/data"
 		new_rows: list[dict[str, str]] = []
 		for text in blobs:
 			new_rows.extend(parse_races_csv(text))
-		existing = load_races_csv_file(out_path)
-		combined, dups, skips = merge_new_races(new_rows, existing, data_dir=data_dir)
-		for msg in dups:
-			print(msg, file=sys.stdout)
-		for msg in skips:
-			print(msg, file=sys.stdout)
-		added = len(combined) - len(existing)
-		if added == 0:
-			print(f"No new rows; left {out_path} unchanged ({len(existing)} row(s)).", file=sys.stdout)
-			return
-		write_races_csv(out_path, combined)
-		print(f"Wrote {out_path} ({added} new row(s), {len(combined)} total).", file=sys.stdout)
+		try:
+			_, log_lines = sync_scraped_rows_to_supabase(new_rows, data_dir=data_dir)
+		except Exception as e:
+			print(f"Supabase sync failed: {e}", file=sys.stderr)
+			raise SystemExit(1) from e
+		for line in log_lines:
+			print(line, file=sys.stdout)
 		return
 
 	for i, text in enumerate(blobs):

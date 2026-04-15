@@ -35,6 +35,4 @@ jobs:
         working-directory: scrapers
         run: python3 run_scrapers.py run corre_brasil --year 2026 | head -n 5
 
-      - name: Merge dry-run (no new rows expected)
-        working-directory: scrapers
-        run: python3 run_scrapers.py run iguana --save-to
+      # --save-to writes to Supabase; requires DATABASE_URL (not available in public CI).

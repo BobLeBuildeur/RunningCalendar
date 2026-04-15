@@ -135,4 +135,8 @@ Row Level Security (RLS) is enabled on these tables. Policies allow **`anon` and
 
 The repository does **not** ship generated SQL or migration artifacts for bulk loading. To sync Supabase with `src/data/*.csv`, apply the schema (for example migration `running_calendar_schema` on the project) and load data yourself: insert reference rows (`providers`, `types`, `distances`), insert `races` with `detail_url` matching `detailUrl`, then insert `race_distances` rows by splitting each race’s `distanceSlugs` on `;` and joining to `distances.slug`. Split large scripts if your SQL client enforces a payload limit.
 
+### Incremental updates from scrapers (`--save-to`)
+
+From `scrapers/`, `python3 run_scrapers.py run <name> --save-to` connects to PostgreSQL using **`RUNNINGCALENDAR_DATABASE_URL`** or **`DATABASE_URL`** (use the Supabase **session mode** URI from **Project Settings → Database**). It validates scraped rows against `src/data/distances.csv`, `types.csv`, and `providers.csv`, skips races whose normalized `detailUrl` already exists in `public.races`, then inserts new rows into **`public.races`** and **`public.race_distances`**. It does **not** modify `src/data/races.csv`.
+
 The static site continues to use **only the CSVs** unless you add a separate data layer that queries Supabase.
