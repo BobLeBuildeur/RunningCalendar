@@ -3,17 +3,15 @@
 	import {
 		formatRaceDateTimeDisplay,
 		formatRaceLocationLine,
-		kmForDistanceSlug,
-		labelForDistanceSlug,
-		providerForSlug,
 		raceUrl,
+		type CalendarModel,
 		type RaceRow,
 	} from '../data/races';
 
-	let { race }: { race: RaceRow } = $props();
+	let { race, calendar }: { race: RaceRow; calendar: CalendarModel } = $props();
 
 	const href = $derived(raceUrl(race));
-	const provider = $derived(providerForSlug(race.providerSlug));
+	const provider = $derived(calendar.providerForSlug(race.providerSlug));
 
 	const dateTimeLine = $derived(formatRaceDateTimeDisplay(race.sortKey).replace(/,\s*/, ' • '));
 
@@ -26,7 +24,7 @@
 		if (slugs.length === 0) return [];
 
 		const maxVisible = 3;
-		const labels = slugs.map((slug) => labelForDistanceSlug(slug));
+		const labels = slugs.map((slug) => calendar.labelForDistanceSlug(slug));
 
 		if (labels.length <= maxVisible) return labels.map((label) => ({ label }));
 
@@ -41,7 +39,7 @@
 
 	const distanceKmsCsv = $derived(
 		race.distanceSlugs
-			.map((slug) => kmForDistanceSlug(slug))
+			.map((slug) => calendar.kmForDistanceSlug(slug))
 			.filter((k): k is number => k !== undefined)
 			.join(';'),
 	);

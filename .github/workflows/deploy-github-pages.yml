@@ -34,6 +34,8 @@ jobs:
         run: npm run validate-csv
 
       - name: Build
+        env:
+          RUNNINGCALENDAR_DATABASE_URL: ${{ secrets.RUNNINGCALENDAR_DATABASE_URL }}
         run: npm run build
 
       - name: Upload artifact

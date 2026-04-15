@@ -4,14 +4,17 @@ import MapPin from '@lucide/astro/icons/map-pin';
 import RaceDateFilter from '../components/RaceDateFilter.svelte';
 import RaceDistanceFilter from '../components/RaceDistanceFilter.svelte';
 import RaceItem from '../components/RaceItem.svelte';
-import { distanceBoundsFromRaces, formatRaceLocationLine, races } from '../data/races';
+import { formatRaceLocationLine, loadCalendar } from '../data/races';
 import '../styles/global.css';
+
+const calendar = await loadCalendar();
+const { races } = calendar;
 
 const locationOptions = Array.from(new Set(races.map((r) => formatRaceLocationLine(r)))).sort((a, b) =>
 	a.localeCompare(b, undefined, { sensitivity: 'base' }),
 );
 
-const distanceBounds = distanceBoundsFromRaces(races);
+const distanceBounds = calendar.distanceBoundsFromRaces(races);
 
 const filterBarInnerClass =
 	`filter-bar__inner${distanceBounds ? '' : ' filter-bar__inner--two-cols'}`;
@@ -212,7 +215,7 @@ const filterBarInnerClass =
 				</section>
 
 				<ul class="race-list grid__col grid__col--span-12">
-					{races.map((r) => <RaceItem race={r} />)}
+					{races.map((r) => <RaceItem race={r} calendar={calendar} />)}
 				</ul>
 				<p id="race-list-empty" class="race-list-empty grid__col grid__col--span-12" role="status" hidden>
 					Nenhuma corrida corresponde aos filtros agora. Confira local, distância e datas — ampliar um deles

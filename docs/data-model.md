@@ -2,14 +2,14 @@
 
 RunningCalendar uses the **same conceptual model** in two places:
 
-1. **CSV files** under `src/data/` — loaded at **build time** by `src/data/races.ts` for the static site.
-2. **PostgreSQL on Supabase** — normalized tables for **query/API** use, with races and distances related by a **many-to-many** junction table instead of a semicolon-separated field.
+1. **PostgreSQL on Supabase** — **source of truth for the site**: `src/data/races.ts` calls `loadCalendar()` at **build time** (SSR in Astro) and reads `public.providers`, `public.types`, `public.distances`, `public.races`, and `public.race_distances`. Set **`RUNNINGCALENDAR_DATABASE_URL`**, **`DATABASE_URL`**, or **`SUPABASE_DB_URL`** to the Supabase **session mode** Postgres URI. The browser still receives a static page; there is no client-side DB access.
+2. **CSV files** under `src/data/` — **not** used to render pages. They remain for **`npm run validate-csv`**, Python scraper FK checks, and as a human-editable mirror of reference data if you keep them in sync with the database.
 
 Schema validation for CSVs: run `npm run validate-csv` locally before committing. Slug rules are summarized in [slug-conventions.md](./slug-conventions.md).
 
-## Static site: CSV files
+## Reference CSV shape (scrapers / validation)
 
-The Astro app does not talk to the database at runtime. It reads CSVs only during the build.
+These files describe the same entities as the database columns below. They are **not** imported by the Astro app for listing races.
 
 ### Entity relationship (CSV)
 
@@ -139,4 +139,4 @@ The repository does **not** ship generated SQL or migration artifacts for bulk l
 
 From `scrapers/`, `python3 run_scrapers.py run <name> --save-to` connects to PostgreSQL using **`RUNNINGCALENDAR_DATABASE_URL`** or **`DATABASE_URL`** (use the Supabase **session mode** URI from **Project Settings → Database**). It validates scraped rows against `src/data/distances.csv`, `types.csv`, and `providers.csv`, skips races whose normalized `detailUrl` already exists in `public.races`, then inserts new rows into **`public.races`** and **`public.race_distances`**. It does **not** modify `src/data/races.csv`.
 
-The static site continues to use **only the CSVs** unless you add a separate data layer that queries Supabase.
+**GitHub Pages / CI:** add the same connection string as a repository secret (e.g. `RUNNINGCALENDAR_DATABASE_URL`) and pass it into `npm run build` so prerendering can load the calendar.

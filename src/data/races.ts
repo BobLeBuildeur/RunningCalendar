@@ -1,20 +1,15 @@
 /**
- * Race listings sourced from https://iguanasports.com.br and
- * https://iguanasports.com.br/blogs/calendario-corridas-de-rua (as of bootstrap).
- * Link slugs match paths under /blogs/calendario-corridas-de-rua/ on that site.
+ * Race listings: loaded at **build time** from PostgreSQL (Supabase) via `loadCalendar()`.
+ * Reference data shape matches docs/data-model.md (public.races, race_distances, distances, types, providers).
  *
- * Distances are normalized in `distances.csv` (slug + km); races reference them by slug.
- * Race kinds are normalized in `types.csv` (slug + type label); races reference them via `typeSlug`.
- * Organizers are normalized in `providers.csv`; races reference them via `providerSlug`.
+ * Legacy CSV files under `src/data/*.csv` remain for `npm run validate-csv` and Python scraper FK checks;
+ * the site no longer reads races from CSV for rendering.
  */
-import distancesCsv from './distances.csv?raw';
-import providersCsv from './providers.csv?raw';
-import racesCsv from './races.csv?raw';
-import typesCsv from './types.csv?raw';
+import { loadCalendarFromDatabase } from '../lib/calendarDb';
 
 export type DistanceRow = {
 	slug: string;
-	/** Distance in kilometres (CSV stores integer tenths of a km, e.g. 211 → 21.1) */
+	/** Distance in kilometres (DB stores integer tenths of a km, e.g. 211 → 21.1) */
 	km: number;
 	/** Optional human context when the row is not a plain numeric distance (e.g. kids categories) */
 	description?: string;
@@ -49,6 +44,20 @@ export type RaceRow = {
 	detailUrl: string;
 };
 
+/** Bound helpers + collections after loading from the database. */
+export type CalendarModel = {
+	races: RaceRow[];
+	distances: DistanceRow[];
+	types: TypeRow[];
+	providers: ProviderRow[];
+	formatKmList: (distanceSlugs: string[]) => string;
+	kmForDistanceSlug: (slug: string) => number | undefined;
+	labelForDistanceSlug: (slug: string) => string;
+	labelForTypeSlug: (slug: string) => string | undefined;
+	providerForSlug: (slug: string) => ProviderRow | undefined;
+	distanceBoundsFromRaces: (raceList: RaceRow[]) => { minKm: number; maxKm: number } | null;
+};
+
 /** Formats `sortKey` (YYYY-MM-DDTHH:MM) for the race card meta line. */
 export function formatRaceDateTimeDisplay(sortKey: string): string {
 	const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(sortKey.trim());
@@ -80,277 +89,22 @@ export function formatRaceLocationLine(
 	return `${race.city}, ${race.state}, ${race.country}`;
 }
 
-/** Minimal RFC 4180-style CSV parser (quoted fields, commas). */
-function parseCsv(text: string): string[][] {
-	const rows: string[][] = [];
-	let row: string[] = [];
-	let field = '';
-	let i = 0;
-	let inQuotes = false;
-
-	const pushField = () => {
-		row.push(field);
-		field = '';
-	};
-	const pushRow = () => {
-		rows.push(row);
-		row = [];
-	};
-
-	while (i < text.length) {
-		const c = text[i];
-		if (inQuotes) {
-			if (c === '"') {
-				if (text[i + 1] === '"') {
-					field += '"';
-					i += 2;
-					continue;
-				}
-				inQuotes = false;
-				i++;
-				continue;
-			}
-			field += c;
-			i++;
-			continue;
-		}
-		if (c === '"') {
-			inQuotes = true;
-			i++;
-			continue;
-		}
-		if (c === ',') {
-			pushField();
-			i++;
-			continue;
-		}
-		if (c === '\r') {
-			i++;
-			continue;
-		}
-		if (c === '\n') {
-			pushField();
-			pushRow();
-			i++;
-			continue;
-		}
-		field += c;
-		i++;
-	}
-	pushField();
-	if (row.some((cell) => cell.length > 0)) pushRow();
-
-	return rows;
-}
-
-/** CSV `km` column is integer tenths of a kilometre (e.g. 50 → 5 km, 211 → 21.1 km). */
-function parseKmCell(cell: string): number {
-	const t = cell.trim();
-	const n = Number(t);
-	if (!Number.isFinite(n) || !Number.isInteger(n)) throw new Error(`Invalid km value: ${t}`);
-	return n / 10;
-}
-
-function rowsToDistances(matrix: string[][]): DistanceRow[] {
-	if (matrix.length < 2) return [];
-	const header = matrix[0].map((h) => h.trim());
-	const idx = (name: string) => {
-		const j = header.indexOf(name);
-		if (j === -1) throw new Error(`Missing CSV column: ${name}`);
-		return j;
-	};
-	const I = { slug: idx('slug'), km: idx('km') };
-	const descJ = header.indexOf('description');
-
-	const out: DistanceRow[] = [];
-	for (let r = 1; r < matrix.length; r++) {
-		const line = matrix[r];
-		if (line.every((c) => !c.trim())) continue;
-		const slug = line[I.slug]?.trim() ?? '';
-		if (!slug) continue;
-		const desc = descJ >= 0 ? (line[descJ] ?? '').trim() : '';
-		out.push({
-			slug,
-			km: parseKmCell(line[I.km] ?? ''),
-			...(desc ? { description: desc } : {}),
-		});
-	}
-	return out;
-}
-
-function parseDistanceSlugs(cell: string, validSlugs: ReadonlySet<string>): string[] {
-	const t = cell.trim();
-	if (!t) return [];
-	return t
-		.split(';')
-		.map((s) => s.trim())
-		.filter(Boolean)
-		.map((s) => {
-			if (!validSlugs.has(s)) throw new Error(`Unknown distance slug in races.csv: ${s}`);
-			return s;
-		});
-}
-
-function rowsToProviders(matrix: string[][]): ProviderRow[] {
-	if (matrix.length < 2) return [];
-	const header = matrix[0].map((h) => h.trim());
-	const idx = (name: string) => {
-		const j = header.indexOf(name);
-		if (j === -1) throw new Error(`Missing CSV column: ${name}`);
-		return j;
-	};
-	const I = { slug: idx('slug'), name: idx('name'), website: idx('website') };
-
-	const out: ProviderRow[] = [];
-	for (let r = 1; r < matrix.length; r++) {
-		const line = matrix[r];
-		if (line.every((c) => !c.trim())) continue;
-		const slug = line[I.slug]?.trim() ?? '';
-		if (!slug) continue;
-		out.push({
-			slug,
-			name: (line[I.name] ?? '').trim(),
-			website: (line[I.website] ?? '').trim(),
-		});
-	}
-	return out;
-}
-
-function rowsToTypes(matrix: string[][]): TypeRow[] {
-	if (matrix.length < 2) return [];
-	const header = matrix[0].map((h) => h.trim());
-	const idx = (name: string) => {
-		const j = header.indexOf(name);
-		if (j === -1) throw new Error(`Missing CSV column: ${name}`);
-		return j;
-	};
-	const I = { slug: idx('slug'), type: idx('type') };
-
-	const out: TypeRow[] = [];
-	for (let r = 1; r < matrix.length; r++) {
-		const line = matrix[r];
-		if (line.every((c) => !c.trim())) continue;
-		const slug = line[I.slug]?.trim() ?? '';
-		if (!slug) continue;
-		out.push({ slug, type: (line[I.type] ?? '').trim() });
-	}
-	return out;
-}
-
-function rowsToRaces(
-	matrix: string[][],
-	validDistanceSlugs: ReadonlySet<string>,
-	validTypeSlugs: ReadonlySet<string>,
-	validProviderSlugs: ReadonlySet<string>,
-): RaceRow[] {
-	if (matrix.length < 2) return [];
-	const header = matrix[0].map((h) => h.trim());
-	const idx = (name: string) => {
-		const j = header.indexOf(name);
-		if (j === -1) throw new Error(`Missing CSV column: ${name}`);
-		return j;
-	};
-	const I = {
-		sortKey: idx('sortKey'),
-		city: idx('city'),
-		state: idx('state'),
-		country: idx('country'),
-		name: idx('name'),
-		typeSlug: idx('typeSlug'),
-		distanceSlugs: idx('distanceSlugs'),
-		providerSlug: idx('providerSlug'),
-		detailUrl: idx('detailUrl'),
-	};
-
-	const out: RaceRow[] = [];
-	for (let r = 1; r < matrix.length; r++) {
-		const line = matrix[r];
-		if (line.every((c) => !c.trim())) continue;
-		const typeSlug = (line[I.typeSlug] ?? '').trim() || 'road';
-		if (!validTypeSlugs.has(typeSlug)) throw new Error(`Unknown type slug in races.csv: ${typeSlug}`);
-		const providerSlug = (line[I.providerSlug] ?? '').trim();
-		if (!providerSlug) throw new Error(`Missing providerSlug for race row: ${line[I.name] ?? r}`);
-		if (!validProviderSlugs.has(providerSlug))
-			throw new Error(`Unknown provider slug in races.csv: ${providerSlug}`);
-		const detailUrl = (line[I.detailUrl] ?? '').trim();
-		if (!detailUrl) throw new Error(`Missing detailUrl for race row: ${line[I.name] ?? r}`);
-		out.push({
-			sortKey: line[I.sortKey].trim(),
-			city: line[I.city].trim(),
-			state: line[I.state].trim(),
-			country: line[I.country].trim(),
-			name: line[I.name].trim(),
-			typeSlug,
-			distanceSlugs: parseDistanceSlugs(line[I.distanceSlugs] ?? '', validDistanceSlugs),
-			providerSlug,
-			detailUrl,
-		});
-	}
-	return out;
-}
-
-const distancesMatrix = parseCsv(distancesCsv.trimEnd());
-export const distances: DistanceRow[] = rowsToDistances(distancesMatrix).sort((a, b) =>
-	a.slug.localeCompare(b.slug),
-);
-
-const typesMatrix = parseCsv(typesCsv.trimEnd());
-export const types: TypeRow[] = rowsToTypes(typesMatrix).sort((a, b) => a.slug.localeCompare(b.slug));
-
-const providersMatrix = parseCsv(providersCsv.trimEnd());
-export const providers: ProviderRow[] = rowsToProviders(providersMatrix).sort((a, b) =>
-	a.slug.localeCompare(b.slug),
-);
-
-const distanceKmBySlug = new Map(distances.map((d) => [d.slug, d.km]));
-const distanceDescriptionBySlug = new Map(
-	distances.filter((d) => d.description).map((d) => [d.slug, d.description!]),
-);
-const validDistanceSlugs = new Set(distances.map((d) => d.slug));
-const typeLabelBySlug = new Map(types.map((t) => [t.slug, t.type]));
-const validTypeSlugs = new Set(types.map((t) => t.slug));
-const validProviderSlugs = new Set(providers.map((p) => p.slug));
-const providerBySlug = new Map(providers.map((p) => [p.slug, p]));
-
-const racesMatrix = parseCsv(racesCsv.trimEnd());
-export const races: RaceRow[] = rowsToRaces(
-	racesMatrix,
-	validDistanceSlugs,
-	validTypeSlugs,
-	validProviderSlugs,
-).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-
-/** Formats km values for the given distance slugs (order preserved). */
-export function formatKmList(distanceSlugs: string[]): string {
-	if (distanceSlugs.length === 0) return '';
-	return distanceSlugs
-		.map((slug) => {
-			const km = distanceKmBySlug.get(slug);
-			if (km === undefined) throw new Error(`Unknown distance slug: ${slug}`);
-			return String(km);
-		})
-		.join(', ');
-}
-
-export function kmForDistanceSlug(slug: string): number | undefined {
-	return distanceKmBySlug.get(slug);
-}
-
 /** Min/max km across this race's listed distances, or `null` when none are set. */
-export function raceKmRange(race: RaceRow): { minKm: number; maxKm: number } | null {
-	const kms = race.distanceSlugs
-		.map((slug) => kmForDistanceSlug(slug))
-		.filter((k): k is number => k !== undefined);
+export function raceKmRange(race: RaceRow, kmForSlug: (slug: string) => number | undefined): { minKm: number; maxKm: number } | null {
+	const kms = race.distanceSlugs.map((slug) => kmForSlug(slug)).filter((k): k is number => k !== undefined);
 	if (kms.length === 0) return null;
 	return { minKm: Math.min(...kms), maxKm: Math.max(...kms) };
 }
 
 /** Smallest/largest km among all races that list at least one distance. */
-export function distanceBoundsFromRaces(raceList: RaceRow[]): { minKm: number; maxKm: number } | null {
+function computeDistanceBoundsFromRaces(
+	raceList: RaceRow[],
+	kmForSlug: (slug: string) => number | undefined,
+): { minKm: number; maxKm: number } | null {
 	let minKm = Infinity;
 	let maxKm = -Infinity;
 	for (const r of raceList) {
-		const range = raceKmRange(r);
+		const range = raceKmRange(r, kmForSlug);
 		if (!range) continue;
 		minKm = Math.min(minKm, range.minKm);
 		maxKm = Math.max(maxKm, range.maxKm);
@@ -359,20 +113,103 @@ export function distanceBoundsFromRaces(raceList: RaceRow[]): { minKm: number; m
 	return { minKm, maxKm };
 }
 
-/** Badge label: optional distance `description` from `distances.csv`, else "Nkm" from km. */
-export function labelForDistanceSlug(slug: string): string {
-	const desc = distanceDescriptionBySlug.get(slug);
-	if (desc) return desc;
-	const km = distanceKmBySlug.get(slug);
-	if (km === undefined) return slug;
-	const n = km % 1 === 0 ? String(km) : String(km);
-	return `${n} km`;
+function buildCalendarModel(
+	distances: DistanceRow[],
+	types: TypeRow[],
+	providers: ProviderRow[],
+	races: RaceRow[],
+): CalendarModel {
+	const distanceKmBySlug = new Map(distances.map((d) => [d.slug, d.km]));
+	const distanceDescriptionBySlug = new Map(
+		distances.filter((d) => d.description).map((d) => [d.slug, d.description!]),
+	);
+	const typeLabelBySlug = new Map(types.map((t) => [t.slug, t.type]));
+	const providerBySlug = new Map(providers.map((p) => [p.slug, p]));
+
+	const kmForDistanceSlug = (slug: string): number | undefined => distanceKmBySlug.get(slug);
+
+	return {
+		races,
+		distances,
+		types,
+		providers,
+		formatKmList(distanceSlugs: string[]): string {
+			if (distanceSlugs.length === 0) return '';
+			return distanceSlugs
+				.map((slug) => {
+					const km = distanceKmBySlug.get(slug);
+					if (km === undefined) throw new Error(`Unknown distance slug: ${slug}`);
+					return String(km);
+				})
+				.join(', ');
+		},
+		kmForDistanceSlug,
+		labelForDistanceSlug(slug: string): string {
+			const desc = distanceDescriptionBySlug.get(slug);
+			if (desc) return desc;
+			const km = distanceKmBySlug.get(slug);
+			if (km === undefined) return slug;
+			const n = km % 1 === 0 ? String(km) : String(km);
+			return `${n} km`;
+		},
+		labelForTypeSlug(slug: string): string | undefined {
+			return typeLabelBySlug.get(slug);
+		},
+		providerForSlug(slug: string): ProviderRow | undefined {
+			return providerBySlug.get(slug);
+		},
+		distanceBoundsFromRaces(raceList: RaceRow[]) {
+			return computeDistanceBoundsFromRaces(raceList, kmForDistanceSlug);
+		},
+	};
 }
 
-export function labelForTypeSlug(slug: string): string | undefined {
-	return typeLabelBySlug.get(slug);
-}
+/**
+ * Load all calendar data from Supabase (PostgreSQL). Call from Astro frontmatter
+ * (`const calendar = await loadCalendar()`).
+ */
+export async function loadCalendar(): Promise<CalendarModel> {
+	const db = await loadCalendarFromDatabase();
 
-export function providerForSlug(slug: string): ProviderRow | undefined {
-	return providerBySlug.get(slug);
+	const distances: DistanceRow[] = db.distances.map((d) => ({
+		slug: d.slug,
+		km: d.km / 10,
+		...(d.description ? { description: d.description } : {}),
+	}));
+
+	const types: TypeRow[] = db.types.map((t) => ({ slug: t.slug, type: t.type }));
+	const providers: ProviderRow[] = db.providers.map((p) => ({
+		slug: p.slug,
+		name: p.name,
+		website: p.website,
+	}));
+
+	const distSlugs = new Set(distances.map((d) => d.slug));
+	const typeSlugs = new Set(types.map((t) => t.slug));
+	const provSlugs = new Set(providers.map((p) => p.slug));
+
+	const races: RaceRow[] = db.races.map((row) => {
+		const typeSlug = row.type_slug.trim() || 'road';
+		if (!typeSlugs.has(typeSlug)) throw new Error(`Unknown type slug from DB: ${typeSlug}`);
+		if (!provSlugs.has(row.provider_slug)) throw new Error(`Unknown provider slug from DB: ${row.provider_slug}`);
+		const detailUrl = row.detail_url.trim();
+		if (!detailUrl) throw new Error(`Missing detail_url for race: ${row.name}`);
+		const slugs = (row.distance_slugs ?? []).filter(Boolean);
+		for (const s of slugs) {
+			if (!distSlugs.has(s)) throw new Error(`Unknown distance slug from DB: ${s}`);
+		}
+		return {
+			sortKey: row.sort_key.trim(),
+			city: row.city.trim(),
+			state: row.state.trim(),
+			country: row.country.trim(),
+			name: row.name.trim(),
+			typeSlug,
+			distanceSlugs: slugs,
+			providerSlug: row.provider_slug.trim(),
+			detailUrl,
+		};
+	});
+
+	return buildCalendarModel(distances, types, providers, races);
 }

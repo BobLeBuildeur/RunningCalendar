@@ -24,10 +24,12 @@
     "@lucide/astro": "^1.8.0",
     "astro": "^6.1.5",
     "lucide": "^1.8.0",
+    "pg": "^8.13.1",
     "svelte": "^5.55.3",
     "typescript": "^5.9.3"
   },
   "devDependencies": {
+    "@types/pg": "^8.11.10",
     "cypress": "^15.13.1",
     "start-server-and-test": "^3.0.2"
   }

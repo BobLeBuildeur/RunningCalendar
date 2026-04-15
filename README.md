@@ -34,6 +34,8 @@ npm run preview
 
 ## Data
 
-Race data is normalized in **`src/data/*.csv`** files and loaded at build time. The **[data model](docs/data-model.md)** also describes the **Supabase (PostgreSQL)** layout: the same entities, with races and distances linked by a **`race_distances`** junction table instead of a semicolon-separated column. The deployed static site does not query the database at runtime unless you add that separately.
+The home page is built from **Supabase (PostgreSQL)** at **`npm run build`** time (`loadCalendar()` in `src/data/races.ts`). Set **`RUNNINGCALENDAR_DATABASE_URL`**, **`DATABASE_URL`**, or **`SUPABASE_DB_URL`** to your **session mode** Postgres URI (Project Settings → Database). For **GitHub Pages**, store that URI in a repo secret and inject it in the deploy workflow.
 
-Python scrapers under **`scrapers/`** can insert new races into Supabase with **`--save-to`** (see `docs/data-model.md`); they still validate FKs against the CSVs in `src/data/`.
+**`src/data/*.csv`** files are kept for **`npm run validate-csv`** and for Python scraper FK validation; they are not used to render the site. See **[data model](docs/data-model.md)** for the schema and CSV ↔ table mapping.
+
+Python scrapers under **`scrapers/`** can insert new races with **`--save-to`** (see `docs/data-model.md`).
