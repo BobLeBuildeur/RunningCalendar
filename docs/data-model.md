@@ -140,3 +140,5 @@ The repository does **not** ship generated SQL or migration artifacts for bulk l
 From `scrapers/`, `python3 run_scrapers.py run <name> --save-to` connects to PostgreSQL using **`RUNNINGCALENDAR_DATABASE_URL`** or **`DATABASE_URL`** (use the Supabase **session mode** URI from **Project Settings → Database**). It validates scraped rows against `src/data/distances.csv`, `types.csv`, and `providers.csv`, skips races whose normalized `detailUrl` already exists in `public.races`, then inserts new rows into **`public.races`** and **`public.race_distances`**. It does **not** modify `src/data/races.csv`.
 
 **GitHub Pages / CI:** add the same connection string as a repository secret (e.g. `RUNNINGCALENDAR_DATABASE_URL`) and pass it into `npm run build` so prerendering can load the calendar.
+
+**Verify DB ↔ CSV:** `npm run compare-db-to-csv` (requires the same env vars as `loadCalendar`) checks that `providers`, `types`, `distances`, and every race row (keyed by `detailUrl` / `detail_url`, distance lists ordered by `km`) match the files under `src/data/`.
