@@ -4,7 +4,9 @@ import MapPin from '@lucide/astro/icons/map-pin';
 import RaceDateFilter from '../components/RaceDateFilter.svelte';
 import RaceDistanceFilter from '../components/RaceDistanceFilter.svelte';
 import RaceItem from '../components/RaceItem.svelte';
+import RaceSavedFilter from '../components/RaceSavedFilter.svelte';
 import { formatRaceLocationLine, loadCalendar } from '../data/races';
+import { SAVED_RACES_STORAGE_KEY } from '../lib/savedRaces';
 import '../styles/global.css';
 
 const calendar = await loadCalendar();
@@ -17,7 +19,7 @@ const locationOptions = Array.from(new Set(races.map((r) => formatRaceLocationLi
 const distanceBounds = calendar.distanceBoundsFromRaces(races);
 
 const filterBarInnerClass =
-	`filter-bar__inner${distanceBounds ? '' : ' filter-bar__inner--two-cols'}`;
+	`filter-bar__inner${distanceBounds ? '' : ' filter-bar__inner--no-distance'}`;
 ---
 
 <html lang="pt-BR">
@@ -129,12 +131,12 @@ const filterBarInnerClass =
 
 			@media (min-width: 640px) {
 				.filter-bar__inner {
-					grid-template-columns: 1fr auto 1fr auto 1fr;
+					grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
 					align-items: start;
 				}
 
-				.filter-bar__inner--two-cols {
-					grid-template-columns: 1fr auto 1fr;
+				.filter-bar__inner--no-distance {
+					grid-template-columns: 1fr auto 1fr auto 1fr;
 				}
 			}
 
@@ -211,6 +213,11 @@ const filterBarInnerClass =
 						<div class="filter-bar__field">
 							<RaceDateFilter client:load fieldId="race-date-filter" />
 						</div>
+
+						<div class="filter-bar__divider" aria-hidden="true" />
+						<div class="filter-bar__field">
+							<RaceSavedFilter client:load fieldId="race-saved-filter" />
+						</div>
 					</div>
 				</section>
 
@@ -228,6 +235,12 @@ const filterBarInnerClass =
 			type="application/json"
 			id="race-distance-bounds"
 			set:html={JSON.stringify(distanceBounds)}
+		/>
+		<script
+			is:inline
+			type="application/json"
+			id="running-calendar-config"
+			set:html={JSON.stringify({ savedRacesKey: SAVED_RACES_STORAGE_KEY })}
 		/>
 		<script is:inline>
 			function parseDistanceKms(li) {
@@ -273,6 +286,45 @@ const filterBarInnerClass =
 			/** @type {{ start: string, end: string } | null} */
 			let dateRangeFilter = null;
 
+			let savedOnly = false;
+
+			function readAppConfig() {
+				const el = document.getElementById('running-calendar-config');
+				if (!el || !(el instanceof HTMLScriptElement)) return { savedRacesKey: 'runningcalendar:saved-races' };
+				try {
+					const parsed = JSON.parse(el.textContent?.trim() || '{}');
+					const key = typeof parsed?.savedRacesKey === 'string' && parsed.savedRacesKey.length > 0
+						? parsed.savedRacesKey
+						: 'runningcalendar:saved-races';
+					return { savedRacesKey: key };
+				} catch {
+					return { savedRacesKey: 'runningcalendar:saved-races' };
+				}
+			}
+
+			const SAVED_STORAGE_KEY = readAppConfig().savedRacesKey;
+
+			/**
+			 * Read the saved-race id set from localStorage. Re-reads each time the
+			 * saved-only filter is (re-)applied so that toggling the saved state on
+			 * individual cards does NOT change the UI until the user interacts with
+			 * this filter (per the product spec).
+			 */
+			function readSavedIds() {
+				try {
+					const raw = window.localStorage.getItem(SAVED_STORAGE_KEY);
+					if (!raw) return new Set();
+					const parsed = JSON.parse(raw);
+					if (!Array.isArray(parsed)) return new Set();
+					return new Set(parsed.filter((x) => typeof x === 'string' && x.length > 0));
+				} catch {
+					return new Set();
+				}
+			}
+
+			/** Snapshot of saved ids taken the last time the saved filter was toggled. */
+			let savedIdsSnapshot = new Set();
+
 			function applyRaceFilters() {
 				const select = document.getElementById('race-location-filter');
 				if (!select || !(select instanceof HTMLSelectElement)) return;
@@ -305,7 +357,13 @@ const filterBarInnerClass =
 							raceDate <= dateRangeFilter.end;
 					}
 
-					const visible = locationMatch && distanceMatch && dateMatch;
+					let savedMatch = true;
+					if (savedOnly) {
+						const id = li.getAttribute('data-race-id') ?? '';
+						savedMatch = id !== '' && savedIdsSnapshot.has(id);
+					}
+
+					const visible = locationMatch && distanceMatch && dateMatch && savedMatch;
 					li.hidden = !visible;
 					if (visible) visibleCount += 1;
 				});
@@ -342,7 +400,78 @@ const filterBarInnerClass =
 				applyRaceFilters();
 			});
 
+			document.addEventListener('runningcalendar:savedfilter', (e) => {
+				const d = e?.detail;
+				savedOnly = Boolean(d && d.active);
+				// Snapshot saved ids at the moment the user toggles the filter. Later
+				// per-card toggles will NOT reapply the filter until the user
+				// re-interacts with this control.
+				savedIdsSnapshot = readSavedIds();
+				applyRaceFilters();
+			});
+
 			document.getElementById('race-location-filter')?.addEventListener('change', applyRaceFilters);
+
+			// ----- Save-race heart button (delegated handler) -----
+			function writeSavedIds(ids) {
+				try {
+					window.localStorage.setItem(SAVED_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+				} catch {
+					/* ignore quota / private mode */
+				}
+			}
+
+			function setButtonSaved(btn, saved) {
+				btn.setAttribute('data-saved', saved ? 'true' : 'false');
+				btn.setAttribute('aria-pressed', saved ? 'true' : 'false');
+				const saveLbl = btn.getAttribute('data-label-save') ?? '';
+				const unsaveLbl = btn.getAttribute('data-label-unsave') ?? '';
+				btn.setAttribute('aria-label', saved ? unsaveLbl : saveLbl);
+				btn.setAttribute('title', saved ? 'Corrida salva' : 'Salvar corrida');
+				const icon = btn.querySelector('.save-race__icon');
+				if (icon instanceof SVGElement) {
+					icon.setAttribute('fill', saved ? 'currentColor' : 'none');
+				}
+			}
+
+			function hydrateSaveButtons() {
+				const ids = readSavedIds();
+				const buttons = document.querySelectorAll('.save-race');
+				buttons.forEach((btn) => {
+					const id = btn.getAttribute('data-race-id') ?? '';
+					setButtonSaved(btn, id !== '' && ids.has(id));
+				});
+			}
+
+			document.addEventListener('click', (event) => {
+				const target = event.target;
+				if (!(target instanceof Element)) return;
+				const btn = target.closest('.save-race');
+				if (!(btn instanceof HTMLButtonElement)) return;
+				event.preventDefault();
+				event.stopPropagation();
+				const id = btn.getAttribute('data-race-id') ?? '';
+				if (!id) return;
+				const ids = readSavedIds();
+				const nextSaved = !ids.has(id);
+				if (nextSaved) {
+					ids.add(id);
+				} else {
+					ids.delete(id);
+				}
+				writeSavedIds(ids);
+				// Update the single button immediately; other occurrences of the same
+				// id (should not happen but safe) are also refreshed below.
+				document
+					.querySelectorAll(`.save-race[data-race-id="${CSS.escape(id)}"]`)
+					.forEach((b) => setButtonSaved(b, nextSaved));
+				// Intentionally do NOT re-apply the saved-only filter here: per spec,
+				// toggling the saved state of a race does not change the visible list
+				// until the user re-interacts with the "Somente corridas salvas"
+				// control.
+			});
+
+			hydrateSaveButtons();
 
 			applyRaceFilters();
 		</script>

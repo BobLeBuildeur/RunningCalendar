@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Badge from './Badge.svelte';
+	import SaveRaceButton from './SaveRaceButton.svelte';
 	import {
 		formatRaceDateTimeDisplay,
 		formatRaceLocationLine,
@@ -46,6 +47,9 @@
 
 	/** YYYY-MM-DD in local calendar for date-range filtering */
 	const raceDateKey = $derived(race.sortKey.slice(0, 10));
+
+	/** Stable race identifier for saved-races persistence (see src/lib/savedRaces.ts). */
+	const raceId = $derived(href);
 </script>
 
 <li
@@ -53,19 +57,23 @@
 	data-location={locationLine}
 	data-distance-kms={distanceKmsCsv}
 	data-race-date={raceDateKey}
+	data-race-id={raceId}
 >
 	<article class="race-card__surface">
 		<header class="race-card__section race-card__section--header">
 			<p class="race-card__datetime">{dateTimeLine}</p>
-			{#if badges.length > 0}
-				<ul class="race-card__badges" aria-label="Distâncias">
-					{#each badges as b (b.label)}
-						<li class="race-card__badge-slot">
-							<Badge>{b.label}</Badge>
-						</li>
-					{/each}
-				</ul>
-			{/if}
+			<div class="race-card__header-actions">
+				{#if badges.length > 0}
+					<ul class="race-card__badges" aria-label="Distâncias">
+						{#each badges as b (b.label)}
+							<li class="race-card__badge-slot">
+								<Badge>{b.label}</Badge>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				<SaveRaceButton raceId={raceId} raceName={race.name} />
+			</div>
 		</header>
 
 		<div class="race-card__section race-card__section--main">
@@ -116,6 +124,12 @@
 		align-items: flex-start;
 		justify-content: space-between;
 		gap: var(--space-md);
+	}
+
+	.race-card__header-actions {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-sm);
 	}
 
 	.race-card__datetime {

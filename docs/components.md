@@ -67,3 +67,17 @@ Agnostic calendar UI for choosing an **inclusive** start and end **calendar day*
 Home-page wrapper: label + `DateRangePicker` with `fieldId` defaulting to `race-date-filter`.
 
 **Filtering semantics** (handled in `src/pages/index.astro`): each race card exposes `data-race-date` (YYYY-MM-DD from `sortKey`). When the date range is `valid`, a race is shown only if `data-race-date` is **inclusively** between `start` and `end`. When the range is `inactive` or `invalid`, no date filter is applied (same pattern as location + distance).
+
+## Save race button (`src/components/SaveRaceButton.svelte`)
+
+Heart-shaped toggle rendered inside every race card header (`src/components/RaceItem.svelte`) that marks a race as saved. The component renders SSR-only markup (a `.save-race` button with `data-race-id` + `data-saved="false"` and `data-label-save` / `data-label-unsave` strings for accessibility). All interactivity — reading/writing `localStorage`, updating `data-saved` + filling the SVG heart, and updating `aria-label` / `aria-pressed` — is handled by a single delegated `click` handler in the inline script of `src/pages/index.astro`. This avoids hydrating one Svelte island per race card and keeps the page static.
+
+**Storage contract** (`src/lib/savedRaces.ts`): `localStorage` key `runningcalendar:saved-races` holds a JSON array of race identifiers. The identifier used for each race is its `detailUrl` (stable per the data model, see `docs/data-model.md`). The constant is imported by the Astro page and embedded in a `<script type="application/json" id="running-calendar-config">` block so that the inline filter script reads the same key without duplicating the string.
+
+**Visual state**: muted (`--color-text-secondary`) when not saved, brand primary (`--color-primary`) filled when saved. Styles live in `src/styles/global.css` so state selectors such as `.save-race[data-saved='true']` keep matching after the delegated handler flips the attribute.
+
+## Race saved filter (`src/components/RaceSavedFilter.svelte`)
+
+Home-page wrapper: heart-icon label + a native checkbox ("Somente corridas salvas"). On change it dispatches a bubbling `runningcalendar:savedfilter` `CustomEvent` on `document` with `detail.active: boolean`.
+
+**Filtering semantics** (handled in `src/pages/index.astro`): when active, races are shown only if their `data-race-id` appears in the saved set read from `localStorage` **at the moment the user toggled the checkbox**. Toggling individual heart buttons after that does **not** re-apply the filter — the visible list only changes when the user interacts with the saved-filter checkbox again. This is intentional: it prevents cards from disappearing under the user's cursor as they curate their list. The checkbox state itself is session-only (not persisted).
