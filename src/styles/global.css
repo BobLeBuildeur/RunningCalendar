@@ -156,3 +156,49 @@ a:hover {
 .grid__col--span-12 {
 	grid-column: span 12;
 }
+
+/**
+ * Save-race heart button — styles live in global.css (not the Svelte component)
+ * so state selectors like [data-saved='true'] match after client-side upgrades.
+ * See `src/components/SaveRaceButton.svelte` + `src/lib/savedRaces.ts`.
+ */
+.save-race {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--space-xs);
+	margin: 0;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	color: var(--color-text-secondary);
+	cursor: pointer;
+	line-height: 0;
+	transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.save-race:hover {
+	color: var(--color-primary);
+	background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.save-race:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
+.save-race .save-race__icon {
+	color: inherit;
+}
+
+.save-race[data-saved='true'] {
+	color: var(--color-primary);
+}
+
+.save-race[data-saved='true']:hover {
+	color: var(--color-primary-hover);
+}
+
+.save-race[data-saved='true'] .save-race__icon {
+	fill: currentColor;
+}
