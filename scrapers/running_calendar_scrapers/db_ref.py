@@ -83,59 +83,69 @@ def fixture_km_to_slug_corre_brasil_repeater() -> dict[float, str]:
 	}
 
 
-def load_races_for_provider(provider_slug: str) -> list[dict[str, str]]:
-	"""Race rows for a provider (same keys as scraper CSV), ordered by ``sort_key``."""
-	c = _connect()
+_LOAD_RACES_FOR_PROVIDER_SQL = """
+SELECT
+	r.sort_key,
+	r.city,
+	r.state,
+	r.country,
+	r.name,
+	r.type_slug,
+	r.provider_slug,
+	r.detail_url,
+	COALESCE(
+		(
+			SELECT string_agg(s.slug, ';' ORDER BY s.km)
+			FROM (
+				SELECT rd.distance_slug AS slug, d.km
+				FROM public.race_distances rd
+				INNER JOIN public.distances d ON d.slug = rd.distance_slug
+				WHERE rd.race_id = r.id
+			) s
+		),
+		''
+	) AS distance_slugs
+FROM public.races r
+WHERE r.provider_slug = %s
+ORDER BY r.sort_key
+"""
+
+
+def _row_to_race_dict(row: tuple[Any, ...]) -> dict[str, str]:
+	"""Coerce a ``load_races_for_provider`` row into the flat race-row contract."""
+	sort_key, city, state, country, name, type_slug, prov, detail_url, dist_cell = row
+	return {
+		"sortKey": str(sort_key).strip(),
+		"city": str(city).strip(),
+		"state": str(state).strip(),
+		"country": str(country).strip(),
+		"name": str(name).strip(),
+		"typeSlug": str(type_slug).strip() or "road",
+		"distanceSlugs": str(dist_cell).strip() if dist_cell else "",
+		"providerSlug": str(prov).strip(),
+		"detailUrl": str(detail_url).strip(),
+	}
+
+
+def load_races_for_provider(
+	provider_slug: str,
+	*,
+	conn: Any | None = None,
+) -> list[dict[str, str]]:
+	"""Race rows for a provider (same keys as scraper CSV), ordered by ``sort_key``.
+
+	``conn`` is injectable so the query can be exercised against a fake
+	DB-API connection in unit tests (see ``tests/test_db_ref_load_races.py``).
+	"""
+	own = conn is None
+	c = conn or _connect()
 	try:
-		out: list[dict[str, str]] = []
 		with c.cursor() as cur:
-			cur.execute(
-				"""
-				SELECT
-					r.sort_key,
-					r.city,
-					r.state,
-					r.country,
-					r.name,
-					r.type_slug,
-					r.provider_slug,
-					r.detail_url,
-					CALESCE(
-						(
-							SELECT string_agg(s.slug, ';' ORDER BY s.km)
-							FROM (
-								SELECT rd.distance_slug AS slug, d.km
-								FROM public.race_distances rd
-								INNER JOIN public.distances d ON d.slug = rd.distance_slug
-								WHERE rd.race_id = r.id
-							) s
-						),
-						''
-					) AS distance_slugs
-				FROM public.races r
-				WHERE r.provider_slug = %s
-				ORDER BY r.sort_key
-				""",
-				(provider_slug,),
-			)
-			for row in cur.fetchall():
-				sort_key, city, state, country, name, type_slug, prov, detail_url, dist_cell = row
-				out.append(
-					{
-						"sortKey": str(sort_key).strip(),
-						"city": str(city).strip(),
-						"state": str(state).strip(),
-						"country": str(country).strip(),
-						"name": str(name).strip(),
-						"typeSlug": str(type_slug).strip() or "road",
-						"distanceSlugs": str(dist_cell).strip() if dist_cell else "",
-						"providerSlug": str(prov).strip(),
-						"detailUrl": str(detail_url).strip(),
-					}
-				)
-		return out
+			cur.execute(_LOAD_RACES_FOR_PROVIDER_SQL, (provider_slug,))
+			return [_row_to_race_dict(row) for row in cur.fetchall()]
 	finally:
-		c.close()
+		if own:
+			c.close()
 
 
 def load_valid_type_slugs(conn: Any | None = None) -> set[str]:
