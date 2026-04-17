@@ -1,8 +1,9 @@
 """End-to-end tests for the AI scraper pipeline using a mocked OpenAI client.
 
-No network access is performed: the loader is monkey-patched to return the
-local fixture HTML and the OpenAI client is replaced with a stub that returns
-pre-canned structured JSON.
+No network access is performed: a fake page-loader is injected via the
+``page_loader`` kwarg (see principle 5.2 in
+``docs/reports/2026-04-17-scraper-architecture-audit.md``) and the OpenAI
+client is replaced with a stub that returns pre-canned structured JSON.
 """
 
 from __future__ import annotations
@@ -60,7 +61,7 @@ class _FakeClient:
 def _fixture_loader(name: str, url: str):
 	html = (_FIXTURES / name).read_text(encoding="utf-8")
 
-	def _loader(target_url: str, *, prefer: str = "auto") -> LoadedPage:
+	def _loader(target_url: str, prefer: str) -> LoadedPage:
 		assert target_url == url
 		return LoadedPage(
 			url=url,
@@ -73,12 +74,9 @@ def _fixture_loader(name: str, url: str):
 	return _loader
 
 
-def test_scrape_race_with_ai_text_path_tom_jerry(monkeypatch):
+def test_scrape_race_with_ai_text_path_tom_jerry():
 	url = "https://www.yescom.com.br/corridatomejerry/2026/index.asp"
-	monkeypatch.setattr(
-		"running_calendar_scrapers.ai_scraper.scraper.load_page",
-		_fixture_loader("tom_jerry.html", url),
-	)
+	fake_loader = _fixture_loader("tom_jerry.html", url)
 	client = _FakeClient(
 		responses=[
 			json.dumps(
@@ -97,7 +95,12 @@ def test_scrape_race_with_ai_text_path_tom_jerry(monkeypatch):
 		]
 	)
 
-	result = scrape_race_with_ai(url, prefer_loader="requests", client=client)
+	result = scrape_race_with_ai(
+		url,
+		prefer_loader="requests",
+		client=client,
+		page_loader=fake_loader,
+	)
 
 	assert result.source == "text"
 	assert result.images_inspected == 0
@@ -113,12 +116,9 @@ def test_scrape_race_with_ai_text_path_tom_jerry(monkeypatch):
 	assert len(client.calls) == 1
 
 
-def test_scrape_race_with_ai_text_path_ktr(monkeypatch):
+def test_scrape_race_with_ai_text_path_ktr():
 	url = "https://xkrsports.com.br/ktrcampos/"
-	monkeypatch.setattr(
-		"running_calendar_scrapers.ai_scraper.scraper.load_page",
-		_fixture_loader("ktr.html", url),
-	)
+	fake_loader = _fixture_loader("ktr.html", url)
 	client = _FakeClient(
 		responses=[
 			json.dumps(
@@ -137,7 +137,12 @@ def test_scrape_race_with_ai_text_path_ktr(monkeypatch):
 		]
 	)
 
-	result = scrape_race_with_ai(url, prefer_loader="requests", client=client)
+	result = scrape_race_with_ai(
+		url,
+		prefer_loader="requests",
+		client=client,
+		page_loader=fake_loader,
+	)
 
 	assert result.source == "text"
 	assert result.race["typeSlug"] == "trail"
@@ -145,12 +150,9 @@ def test_scrape_race_with_ai_text_path_ktr(monkeypatch):
 	assert result.race["providerSlug"] == "xkrsports"
 
 
-def test_scrape_race_with_ai_falls_back_to_vision(monkeypatch):
+def test_scrape_race_with_ai_falls_back_to_vision():
 	url = "https://example.com/race"
-	monkeypatch.setattr(
-		"running_calendar_scrapers.ai_scraper.scraper.load_page",
-		_fixture_loader("empty.html", url),
-	)
+	fake_loader = _fixture_loader("empty.html", url)
 	client = _FakeClient(
 		responses=[
 			json.dumps({"insufficient": True}),
@@ -170,7 +172,12 @@ def test_scrape_race_with_ai_falls_back_to_vision(monkeypatch):
 		]
 	)
 
-	result = scrape_race_with_ai(url, prefer_loader="requests", client=client)
+	result = scrape_race_with_ai(
+		url,
+		prefer_loader="requests",
+		client=client,
+		page_loader=fake_loader,
+	)
 
 	assert result.source == "image"
 	assert result.images_inspected == 1
@@ -182,12 +189,9 @@ def test_scrape_race_with_ai_falls_back_to_vision(monkeypatch):
 	assert any(part.get("type") == "image_url" for part in user_content)
 
 
-def test_scrape_race_with_ai_errors_when_both_paths_empty(monkeypatch):
+def test_scrape_race_with_ai_errors_when_both_paths_empty():
 	url = "https://example.com/race"
-	monkeypatch.setattr(
-		"running_calendar_scrapers.ai_scraper.scraper.load_page",
-		_fixture_loader("empty.html", url),
-	)
+	fake_loader = _fixture_loader("empty.html", url)
 	client = _FakeClient(
 		responses=[
 			json.dumps({"insufficient": True}),
@@ -196,14 +200,19 @@ def test_scrape_race_with_ai_errors_when_both_paths_empty(monkeypatch):
 	)
 
 	with pytest.raises(AIScraperError):
-		scrape_race_with_ai(url, prefer_loader="requests", client=client)
+		scrape_race_with_ai(
+			url,
+			prefer_loader="requests",
+			client=client,
+			page_loader=fake_loader,
+		)
 
 
-def test_scrape_race_with_ai_errors_when_no_images_and_text_empty(monkeypatch):
+def test_scrape_race_with_ai_errors_when_no_images_and_text_empty():
 	# No <img> tags present -> the image fallback has nothing to inspect.
 	url = "https://example.com/bare"
 
-	def _loader(target_url: str, *, prefer: str = "auto") -> LoadedPage:
+	def _loader(target_url: str, prefer: str) -> LoadedPage:
 		return LoadedPage(
 			url=url,
 			title="Bare",
@@ -212,11 +221,12 @@ def test_scrape_race_with_ai_errors_when_no_images_and_text_empty(monkeypatch):
 			images=(),
 		)
 
-	monkeypatch.setattr(
-		"running_calendar_scrapers.ai_scraper.scraper.load_page",
-		_loader,
-	)
 	client = _FakeClient(responses=[json.dumps({"insufficient": True})])
 
 	with pytest.raises(AIScraperError):
-		scrape_race_with_ai(url, prefer_loader="requests", client=client)
+		scrape_race_with_ai(
+			url,
+			prefer_loader="requests",
+			client=client,
+			page_loader=_loader,
+		)

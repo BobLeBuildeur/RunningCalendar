@@ -16,7 +16,7 @@ and a small amount of metadata about which path was used.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from running_calendar_scrapers.ai_scraper.distance import normalize_distance_slugs
 from running_calendar_scrapers.ai_scraper.extractor import (
@@ -31,6 +31,18 @@ from running_calendar_scrapers.ai_scraper.loader import (
 )
 from running_calendar_scrapers.ai_scraper.schema import RACE_ROW_KEYS
 from running_calendar_scrapers.ai_scraper.slug import provider_slug_from_url, slugify
+
+PageLoader = Callable[[str, str], LoadedPage]
+"""Port for rendering a URL. Accepts ``(url, prefer)`` and returns a ``LoadedPage``.
+
+The default implementation is :func:`running_calendar_scrapers.ai_scraper.loader.load_page`;
+tests inject a fake via the ``page_loader`` kwarg on :func:`scrape_race_with_ai` so
+they no longer need to monkey-patch the ``scraper.load_page`` attribute path.
+"""
+
+
+def _default_page_loader(url: str, prefer: str) -> LoadedPage:
+	return load_page(url, prefer=prefer)
 
 
 class AIScraperError(RuntimeError):
@@ -77,6 +89,7 @@ def scrape_race_with_ai(
 	text_model: str | None = None,
 	vision_model: str | None = None,
 	client: Any | None = None,
+	page_loader: PageLoader | None = None,
 ) -> AIScraperResult:
 	"""Scrape a single race row from an arbitrary running-race page.
 
@@ -95,11 +108,16 @@ def scrape_race_with_ai(
 	client:
 		Pre-built OpenAI client (primarily for tests). When ``None``, a client
 		is constructed lazily from the ``OPENAI_API_KEY`` env var.
+	page_loader:
+		Injected page-loader port (``(url, prefer) -> LoadedPage``). Defaults
+		to :func:`running_calendar_scrapers.ai_scraper.loader.load_page`; tests
+		pass a fake so they do not need to monkey-patch imports.
 	"""
 	if not url:
 		raise AIScraperError("url is required")
 
-	page = load_page(url, prefer=prefer_loader)
+	loader = page_loader or _default_page_loader
+	page = loader(url, prefer_loader)
 
 	text_kwargs: dict[str, Any] = {
 		"url": url,
@@ -150,6 +168,7 @@ def scrape_race_with_ai(
 __all__ = [
 	"AIScraperError",
 	"AIScraperResult",
+	"PageLoader",
 	"RACE_ROW_KEYS",
 	"scrape_race_with_ai",
 ]
