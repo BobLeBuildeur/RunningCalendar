@@ -13,7 +13,7 @@ from running_calendar_scrapers.db_ref import (
 	load_valid_provider_slugs,
 	load_valid_type_slugs,
 )
-from running_calendar_scrapers.iguana import RACES_HEADER, parse_races_csv
+from running_calendar_scrapers.race_row import RACES_HEADER, parse_races_csv
 
 __all__ = [
 	"normalize_detail_url_for_key",

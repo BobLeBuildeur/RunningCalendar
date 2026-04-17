@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 import requests
 
 from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
-from running_calendar_scrapers.iguana import ScrapedRace, format_races_csv
+from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
 GRAPHQL_URL = "https://www.runningland.com.br/graphql"
 CALENDAR_CATEGORY_ID = "3"

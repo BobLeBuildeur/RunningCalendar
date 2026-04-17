@@ -9,7 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from running_calendar_scrapers.db_ref import load_valid_provider_slugs, load_valid_type_slugs
-from running_calendar_scrapers.iguana import RACES_HEADER, ScrapedRace, scraped_to_csv_rows
+from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
 CALENDAR_ASP = "https://www.yescom.com.br/yescom/novosite/codigos/calendario_2016.asp"
 USER_AGENT = "RunningCalendarBot/1.0 (+https://github.com/boblebuildeur/RunningCalendar)"
@@ -140,8 +140,6 @@ def scrape_yescom_calendar(year: int, *, session: requests.Session | None = None
 
 
 def format_yescom_csv(races: list[ScrapedRace]) -> str:
-	from running_calendar_scrapers.iguana import format_races_csv
-
 	return format_races_csv(races)
 
 

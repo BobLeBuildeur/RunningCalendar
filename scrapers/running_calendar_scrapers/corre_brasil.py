@@ -11,7 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
-from running_calendar_scrapers.iguana import ScrapedRace, format_races_csv
+from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
 CALENDAR_URL = "https://www.correbrasil.com.br/calendario-corridas"
 USER_AGENT = "RunningCalendarBot/1.0 (+https://github.com/boblebuildeur/RunningCalendar)"

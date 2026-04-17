@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import csv
-import io
 import re
-from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -13,6 +10,15 @@ import requests
 from bs4 import BeautifulSoup
 
 from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+# Re-exported so existing call sites (`from iguana import ScrapedRace`, etc.)
+# keep working while the canonical definition lives in ``race_row``.
+from running_calendar_scrapers.race_row import (
+	RACES_HEADER,
+	ScrapedRace,
+	format_races_csv,
+	parse_races_csv,
+	scraped_to_csv_rows,
+)
 
 CALENDAR_URL = "https://iguanasports.com.br/blogs/calendario-corridas-de-rua"
 BLOG_PREFIX = "/blogs/calendario-corridas-de-rua/"
@@ -47,19 +53,6 @@ _EN_MONTHS = (
 	"Nov",
 	"Dec",
 )
-
-
-@dataclass(frozen=True)
-class ScrapedRace:
-	sort_key: str
-	city: str
-	state: str
-	country: str
-	name: str
-	type_slug: str
-	distance_slugs: str
-	provider_slug: str
-	detail_url: str
 
 
 def _session() -> requests.Session:
@@ -233,52 +226,6 @@ def scrape_iguana_calendar(*, session: requests.Session | None = None) -> list[S
 		html = fetch_race_article(session, slug)
 		out.append(scrape_race(slug, html, km_to_slug=km_to_slug))
 	return sorted(out, key=lambda x: x.sort_key)
-
-
-RACES_HEADER = [
-	"sortKey",
-	"city",
-	"state",
-	"country",
-	"name",
-	"typeSlug",
-	"distanceSlugs",
-	"providerSlug",
-	"detailUrl",
-]
-
-
-def scraped_to_csv_rows(races: list[ScrapedRace]) -> list[dict[str, str]]:
-	rows: list[dict[str, str]] = []
-	for x in races:
-		rows.append(
-			{
-				"sortKey": x.sort_key,
-				"city": x.city,
-				"state": x.state,
-				"country": x.country,
-				"name": x.name,
-				"typeSlug": x.type_slug,
-				"distanceSlugs": x.distance_slugs,
-				"providerSlug": x.provider_slug,
-				"detailUrl": x.detail_url,
-			}
-		)
-	return rows
-
-
-def format_races_csv(races: list[ScrapedRace]) -> str:
-	buf = io.StringIO()
-	writer = csv.DictWriter(buf, fieldnames=RACES_HEADER, lineterminator="\n")
-	writer.writeheader()
-	for row in scraped_to_csv_rows(races):
-		writer.writerow(row)
-	return buf.getvalue()
-
-
-def parse_races_csv(text: str) -> list[dict[str, str]]:
-	reader = csv.DictReader(io.StringIO(text))
-	return [dict(row) for row in reader]
 
 
 def run(argv: list[str] | None = None) -> str:

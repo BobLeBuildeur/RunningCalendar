@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 
 from running_calendar_scrapers.db_ref import repo_root
-from running_calendar_scrapers.iguana import parse_races_csv
+from running_calendar_scrapers.race_row import parse_races_csv
 from running_calendar_scrapers.supabase_sync import sync_scraped_rows_to_supabase
 
 

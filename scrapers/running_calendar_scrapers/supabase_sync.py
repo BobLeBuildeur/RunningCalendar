@@ -7,6 +7,20 @@ from typing import Any
 
 from running_calendar_scrapers.db_config import database_url_from_env
 from running_calendar_scrapers.merge_csv import normalize_detail_url_for_key, partition_scraped_races
+from running_calendar_scrapers.race_row import RACE_DB_INSERT_COLUMNS, RACE_ROW_FIELDS
+
+# Mapping from CSV key -> race-row dict lookup, used by :func:`insert_races_and_distances`
+# to build the INSERT value tuple in the order declared in ``RACE_ROW_FIELDS``.
+_INSERT_CSV_KEYS: tuple[str, ...] = tuple(
+	f.csv_key for f in RACE_ROW_FIELDS if f.db_column is not None
+)
+_INSERT_SQL = (
+	"INSERT INTO public.races ("
+	+ ", ".join(RACE_DB_INSERT_COLUMNS)
+	+ ") VALUES ("
+	+ ", ".join(["%s"] * len(RACE_DB_INSERT_COLUMNS))
+	+ ") RETURNING id"
+)
 
 
 def fetch_existing_detail_url_keys(conn: Any) -> set[str]:
@@ -36,25 +50,7 @@ def insert_races_and_distances(
 	inserted = 0
 	with conn.cursor() as cur:
 		for row in rows:
-			cur.execute(
-				"""
-				INSERT INTO public.races (
-					sort_key, city, state, country, name,
-					type_slug, provider_slug, detail_url
-				) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-				RETURNING id
-				""",
-				(
-					row["sortKey"],
-					row["city"],
-					row["state"],
-					row["country"],
-					row["name"],
-					row["typeSlug"],
-					row["providerSlug"],
-					row["detailUrl"],
-				),
-			)
+			cur.execute(_INSERT_SQL, tuple(row[k] for k in _INSERT_CSV_KEYS))
 			race_id = cur.fetchone()[0]
 			slugs = [s.strip() for s in (row.get("distanceSlugs") or "").split(";") if s.strip()]
 			for ds in slugs:
