@@ -40,4 +40,6 @@ There are **no checked-in CSV data files**; **[data model](docs/data-model.md)**
 
 Python scrapers under **`scrapers/`** validate foreign keys against the database and can insert new races with **`--save-to`** (see `docs/data-model.md`).
 
+For JS-heavy or inconsistent race pages, the **AI-assisted scraper** under `scrapers/running_calendar_scrapers/ai_scraper/` renders the page in Cypress and extracts a single race row via the OpenAI API (`docs/ai-scraper.md`).
+
 **Schema check:** with the same database env vars set, run **`npm run validate-db`** to verify slug formats, URLs, FK integrity, and unique `detail_url` values in `public.*`.
