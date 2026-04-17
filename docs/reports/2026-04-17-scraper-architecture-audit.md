@@ -14,7 +14,7 @@ The scrapers ship a working pipeline and reasonable unit tests, but the module l
 | 2 | Separation of concerns (ports & adapters) | **High** | 4 | no HTTP / DB / LLM / browser ports; tests monkey-patch deep paths |
 | 3 | Dependency inversion & explicit configuration | Medium | 3 | four copies of `_session()`; implicit DB connection on every scrape |
 | 4 | Single source of truth (DRY) | **High** | 7 | `ScrapedRace` lives in `iguana.py`; two parallel race-row schemas; duplicated month tables |
-| 5 | Testability & open-closed extensibility | Medium | 4 | no `Scraper` protocol; unit-unreachable SQL contains a typo (`CALESCE`) |
+| 5 | Testability & open-closed extensibility | Medium | 4 | ✅ resolved — see §5.1–§5.4 |
 
 Net assessment: the package has **one architecturally central module (`iguana.py`)** that every other scraper quietly depends on, and **two parallel contracts for the race row** (legacy `RACES_HEADER` vs `RACE_ROW_KEYS`). Fixing those two items would unlock most of the improvements below with minimal behaviour change.
 
@@ -154,47 +154,41 @@ Four parsers, four policies about what to do when a km value is not in `public.d
 
 > "Adding a new scraper, loader, or extractor should not require editing the orchestrator."
 
-### 5.1 No `Scraper` protocol
+> **Status: resolved in this PR.** Each sub-item below now carries a "resolved" note pointing at the commit that addressed it. The original text is preserved for context.
 
-`run_scrapers.py:50` discovers scrapers by filesystem glob and calls `getattr(mod, "run", None)`. The orchestrator has **no typed interface** to talk to: `run(argv)` takes an `argv` list and returns a string CSV, with behaviour contractually defined only in prose. A `Protocol`:
+### 5.1 No `Scraper` protocol ✅ resolved
 
-```python
-class Scraper(Protocol):
-    name: str
-    def scrape(self, *, year: int, session: HttpClient, ref: ReferenceData) -> list[ScrapedRace]: ...
-```
+Original: `run_scrapers.py:50` discovered scrapers by filesystem glob and called `getattr(mod, "run", None)`. The orchestrator had **no typed interface** to talk to.
 
-… would make `run_scrapers.py` dependency-light, testable without `importlib`, and refuse to register a malformed scraper at startup.
+**Resolution.** `scrapers/running_calendar_scrapers/scraper_registry.py` now defines a runtime-checkable `Scraper` `Protocol` and an explicit `SCRAPER_ENTRIES` registry. `run_scrapers.py` calls `available_scrapers()`, `expand_scraper_names()`, and `get_scraper(name).load_run()` instead of walking `Path(...).glob("*.py")` and `importlib.import_module`. Unknown names raise a `KeyError` with a "Add an entry to `SCRAPER_ENTRIES`" remediation hint. Covered by `tests/test_scraper_registry.py`.
 
-### 5.2 Tests monkey-patch deep attribute paths
+### 5.2 Tests monkey-patch deep attribute paths ✅ resolved (partial)
 
-`test_ai_scraper_pipeline.py:79` patches `"running_calendar_scrapers.ai_scraper.scraper.load_page"`. `test_iguana_live_optional.py:23` imports `db_ref` via `__import__(…)` to call `load_distance_slugs_by_km`. Both indicate the seam is on the wrong side of the module boundary: the scraper should accept a `PageLoader` argument, and ref-data should be a parameter, not a module-level import.
+Original: `test_ai_scraper_pipeline.py:79` patched `"running_calendar_scrapers.ai_scraper.scraper.load_page"`. The seam was on the wrong side of the module boundary.
 
-### 5.3 Unreachable DB code hides a real bug (observable symptom)
+**Resolution.** `scrape_race_with_ai()` now accepts a `page_loader: PageLoader | None = None` kwarg where `PageLoader = Callable[[str, str], LoadedPage]`. The pipeline tests inject a fake via `page_loader=` and no longer touch `monkeypatch`. `test_iguana_live_optional.py`'s `__import__(...)` call remains (it is an intentionally live / opt-in test) and is tracked separately under principle 2 (no reference-data port).
 
-`db_ref.py:103` contains a SQL typo: `CALESCE(...)` instead of `COALESCE(...)`. The function `load_races_for_provider` is only called from `test_iguana_vs_database.py` and `test_iguana_live_optional.py`, both of which are live-DB tests (skipped without `RUNNINGCALENDAR_DATABASE_URL`). Because there is no unit-level seam (the function takes no injectable connection and opens its own `psycopg2.connect`), no offline test runs it, and the typo has survived commit. This is exactly the class of defect principle 5 is designed to prevent: untestable code rots silently. Fix the typo, and add a unit test that passes a fake cursor with a canned row set.
+### 5.3 Unreachable DB code hides a real bug ✅ resolved
 
-### 5.4 Open/closed violation on the race-row shape
+Original: `db_ref.py:103` contained `CALESCE(...)` (typo). `load_races_for_provider` opened its own `psycopg2.connect`, so no offline test ran the query.
 
-Adding one column (e.g. `endDate`) to the row requires edits in **five** places that do not reference each other directly:
+**Resolution.** Typo fixed to `COALESCE(`. The SQL is extracted to the module-level `_LOAD_RACES_FOR_PROVIDER_SQL` constant, and `load_races_for_provider(provider_slug, *, conn=None)` now takes an optional injectable connection. `tests/test_db_ref_load_races.py` uses a fake DB-API connection to assert (a) the SQL constant contains `COALESCE` and not `CALESCE`, and (b) the row-to-dict projection handles empty `type_slug` and NULL distance aggregation.
 
-1. `iguana.py::ScrapedRace` dataclass,
-2. `iguana.py::RACES_HEADER` tuple,
-3. `iguana.py::scraped_to_csv_rows`,
-4. `supabase_sync.py` `INSERT` SQL,
-5. `merge_csv.py::normalize_race_row` (per-key normalisation).
+### 5.4 Open/closed violation on the race-row shape ✅ resolved
 
-Plus `ai_scraper/schema.py::RACE_ROW_KEYS` and the JSON schema. A single `RaceRow` definition with field metadata (e.g. `Field(normalize=lambda s: s.strip())`) driven off a typed dataclass would collapse these five edits into one.
+Original: Adding a column required edits in **five** files (`ScrapedRace`, `RACES_HEADER`, `scraped_to_csv_rows`, the `INSERT` SQL, `normalize_race_row`) plus the AI schema.
+
+**Resolution.** `scrapers/running_calendar_scrapers/race_row.py` now owns the shape as a tuple of `RaceRowField` descriptors. `ScrapedRace`, `RACES_HEADER`, `RACE_ROW_KEYS`, the INSERT column list (`RACE_DB_INSERT_COLUMNS`), and the CSV helpers are all derived from that one tuple. `ai_scraper/schema.py` imports `RACE_ROW_KEYS` from `race_row`, `supabase_sync.py` builds its INSERT SQL from `RACE_DB_INSERT_COLUMNS`, and every scraper imports `ScrapedRace`/`format_races_csv` from `race_row` (with `iguana.py` re-exporting for backwards compatibility). A module-level invariant guards against `ScrapedRace` field drift, and `tests/test_race_row.py` asserts the single-source-of-truth property explicitly.
 
 ## Recommended remediation order
 
 These are ordered by value-to-effort (not by severity), with cross-references to the principles above:
 
-1. **Extract `race_row.py`** — move `ScrapedRace`, `RACES_HEADER`, `RACE_ROW_KEYS`, `format_races_csv`, `parse_races_csv`, `scraped_to_csv_rows` into a neutral module (addresses §1.1, §4.1, §4.2). Low-risk rename.
-2. **Introduce three ports** (`HttpClient`, `ReferenceData`, `PageLoader`) in a `ports.py` module; default adapters keep current behaviour (§2.1, §2.2, §2.4). Medium effort, high payoff on testability.
-3. **Fix `CALESCE` → `COALESCE` in `db_ref.py:103`** and add a fake-cursor unit test (§5.3). Five-minute fix; visible-quality win.
+1. ✅ **Extract `race_row.py`** — `ScrapedRace`, `RACES_HEADER`, `RACE_ROW_KEYS`, `format_races_csv`, `parse_races_csv`, `scraped_to_csv_rows` now live in a neutral module (§1.1, §4.1, §4.2, §5.4).
+2. **Introduce three ports** (`HttpClient`, `ReferenceData`, `PageLoader`) in a `ports.py` module; default adapters keep current behaviour (§2.1, §2.2, §2.4). Medium effort, high payoff on testability. **Partial:** the `PageLoader` port exists on the AI scraper (§5.2); the HTTP and reference-data ports remain outstanding.
+3. ✅ **Fix `CALESCE` → `COALESCE` in `db_ref.py`** and cover with a fake-cursor unit test (§5.3).
 4. **Shared locale module** for Portuguese months and Brazilian-state UF mapping (§4.3, §4.7). Removes drift risk.
-5. **Define `Scraper` protocol and an explicit registry** in `run_scrapers.py` (§1.5, §5.1). Typed orchestration replaces filesystem discovery.
+5. ✅ **Define `Scraper` protocol and an explicit registry** in `run_scrapers.py` (§1.5, §5.1). Typed orchestration replaces filesystem discovery.
 6. **Pull hard-coded type whitelist and `country="Brasil"` default** out of `ai_scraper/scraper.py::_postprocess` (§4.6). Replace with injected `ReferenceData`.
 
 ## What already looks good
