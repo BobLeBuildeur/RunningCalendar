@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Run scrapers and print CSV to stdout (for CI or local inspection).
 
-Each scrapper is a module ``running_calendar_scrapers/<name>.py`` defining
-``run(argv: list[str] | None = None) -> str`` returning CSV text. Modules are
-discovered by filename (see ``list`` command).
+Each scraper is a module ``running_calendar_scrapers/<name>.py`` defining
+``run(argv: list[str] | None = None) -> str`` returning CSV text. The set of
+runnable scrapers is maintained explicitly in
+``running_calendar_scrapers/scraper_registry.py::SCRAPER_ENTRIES`` — adding a
+new scraper module also requires a one-line registration there.
 
 Use ``--save-to`` to insert scraped races into **Supabase** (``public.races`` and
 ``race_distances``): rows are normalized against ``public.distances``, ``public.types``,
@@ -28,48 +30,21 @@ Legacy (same as ``run``)::
 from __future__ import annotations
 
 import argparse
-import importlib
 import sys
-from pathlib import Path
 
-from running_calendar_scrapers.db_ref import repo_root
 from running_calendar_scrapers.race_row import parse_races_csv
+from running_calendar_scrapers.scraper_registry import (
+	available_scrapers,
+	expand_scraper_names,
+	get_scraper,
+)
 from running_calendar_scrapers.supabase_sync import sync_scraped_rows_to_supabase
 
 
-def _package_dir() -> Path:
-	return Path(__file__).resolve().parent / "running_calendar_scrapers"
-
-
+# Backwards-compatible shim: some tooling may still import this symbol.
 def discover_scraper_names() -> list[str]:
-	"""Return module stems under ``running_calendar_scrapers`` that define ``run``."""
-	names: list[str] = []
-	for path in sorted(_package_dir().glob("*.py")):
-		if path.name == "__init__.py" or path.name.startswith("_"):
-			continue
-		mod = importlib.import_module(f"running_calendar_scrapers.{path.stem}")
-		if callable(getattr(mod, "run", None)):
-			names.append(path.stem)
-	return names
-
-
-def _expand_scraper_args(names: list[str], available: list[str]) -> list[str]:
-	"""Resolve ``all`` and validate names."""
-	avail_set = set(available)
-	out: list[str] = []
-	for n in names:
-		if n == "all":
-			for a in available:
-				if a not in out:
-					out.append(a)
-			continue
-		if n not in avail_set:
-			raise SystemExit(
-				f"Unknown scraper {n!r}. Available: {', '.join(available) or '(none)'}. "
-				"Use `python3 run_scrapers.py list` to see scrapers.",
-			)
-		out.append(n)
-	return out
+	"""Return every registered scraper name. Kept for backwards compatibility."""
+	return available_scrapers()
 
 
 def main() -> None:
@@ -79,7 +54,7 @@ def main() -> None:
 		if first not in ("list", "run", "-h", "--help") and not first.startswith("-"):
 			argv = [argv[0], "run", *argv[1:]]
 
-	available = discover_scraper_names()
+	available = available_scrapers()
 
 	parser = argparse.ArgumentParser(description="RunningCalendar data scrapers")
 	sub = parser.add_subparsers(dest="command", required=True)
@@ -117,13 +92,18 @@ def main() -> None:
 			print(name)
 		return
 
-	names = _expand_scraper_args(args.scrapers, available)
+	try:
+		names = expand_scraper_names(args.scrapers)
+	except KeyError as exc:
+		# KeyError's str() wraps the message in quotes; pull the arg out directly.
+		raise SystemExit(exc.args[0] if exc.args else str(exc)) from exc
+
 	extra = ["--year", str(args.year)]
 	sep = "\n---\n"
 	blobs: list[str] = []
 	for name in names:
-		mod = importlib.import_module(f"running_calendar_scrapers.{name}")
-		blobs.append(getattr(mod, "run")(extra))
+		run = get_scraper(name).load_run()
+		blobs.append(run(extra))
 
 	if args.save_to:
 		new_rows: list[dict[str, str]] = []
