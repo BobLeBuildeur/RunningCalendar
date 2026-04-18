@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SportShoe } from 'lucide';
 	import { onMount } from 'svelte';
+	import { captureEvent, SOURCE_PAGE } from '../lib/analytics';
 	import DualRangeSlider from './DualRangeSlider.svelte';
 	import LucideIcon from './LucideIcon.svelte';
 
@@ -28,6 +29,8 @@
 	let start = $state(minKm);
 	let end = $state(maxKm);
 	let hydrated = $state(false);
+	/** Skip analytics on the first $effect run (initial hydration sync). */
+	let distanceAnalyticsReady = $state(false);
 
 	onMount(() => {
 		hydrated = true;
@@ -40,6 +43,15 @@
 				bubbles: true,
 			}),
 		);
+		if (!distanceAnalyticsReady) {
+			distanceAnalyticsReady = true;
+			return;
+		}
+		captureEvent('distance_range_selected', {
+			distance_min_km: start,
+			distance_max_km: end,
+			source_page: SOURCE_PAGE,
+		});
 	});
 </script>
 
