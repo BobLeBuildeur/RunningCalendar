@@ -50,7 +50,8 @@ Agnostic calendar UI for choosing an **inclusive** start and end **calendar day*
 
 **Events**
 
-- Dispatches `runningcalendar:daterange` on `document` with `detail`: `{ state: 'inactive' \| 'invalid' \| 'valid', start: string \| null, end: string \| null }` where `start`/`end` are ISO date keys only when `state === 'valid'`.
+- Dispatches `runningcalendar:daterange` on `document` with `detail`: `{ state: 'inactive' \| 'invalid' \| 'valid', start: string \| null, end: string \| null }` where `start`/`end` are ISO date keys only when `state === 'valid'`. The home page listens to this event for filtering; it fires on every state change.
+- **Analytics:** when PostHog is enabled, `date_range_selected` is captured after the range settles (debounced), not on every intermediate click, and includes `start`, `end`, `date_range_start`, and `date_range_end`.
 
 **Presentation**
 
@@ -61,6 +62,8 @@ Agnostic calendar UI for choosing an **inclusive** start and end **calendar day*
 **Demo video**
 
 - Run `npm run test:e2e:demo`; Cypress records `artifacts/ui/cypress-videos/date-range-picker-demo.cy.ts.mp4` (gitignored).
+
+**E2E builds:** `npm run preview:e2e` sets `RUNNINGCALENDAR_E2E_FIXTURE=1` so `npm run build` uses a small in-repo calendar instead of PostgreSQL (for Cypress in CI and local runs without a DB URL).
 
 ## Race date filter (`src/components/RaceDateFilter.svelte`)
 

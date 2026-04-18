@@ -26,7 +26,7 @@ Stages follow the primary journey in [user-journey.md](./user-journey.md).
 | `calendar_viewed` | Active | Product Analytics | User opened or returned to the calendar home page and the race list was available (static page; first meaningful paint or equivalent). | `source_page` (optional; e.g. referrer path), `base_path` (optional) |
 | `location_selected` | Active | Product Analytics | User chose a location option in the region filter (including “all” or equivalent). | `location_value`, `source_page` |
 | `distance_range_selected` | Active | Product Analytics | User changed the distance range filter (min/max km). Omit or no-op when the UI hides distance bounds. | `distance_min_km`, `distance_max_km`, `source_page` |
-| `date_range_selected` | Active | Product Analytics | User applied a date range filter on the calendar. | `date_range_start`, `date_range_end`, `source_page` |
+| `date_range_selected` | Active | Product Analytics | User finished adjusting the date range filter (emitted after a short idle period so rapid clicks do not duplicate the event). | `start`, `end`, `date_range_start`, `date_range_end`, `source_page` |
 | `saved_filter_selected` | Active | Product Analytics | User turned “saved races only” on or off. | `saved_only` (boolean), `source_page` |
 | `race_favorite_selected` | Active | Product Analytics | User changed whether a race is saved for later (browser persistence). Fire once per toggle with the new state. | `race_id`, `race_name`, `is_saved` (boolean), `source_page` |
 | `race_detail_clicked` | Active | Product Analytics | User followed the primary detail action from a race card (opens the organizer URL; external). | `race_id`, `destination_url`, `source_page` |
@@ -36,3 +36,4 @@ Stages follow the primary journey in [user-journey.md](./user-journey.md).
 - **`race_id`** — Stable identifier for the race in analytics; in the app this matches the saved-race key (canonical `detail_url` / detail URL string).
 - **`source_page`** — Path or logical name of the page where the event occurred (e.g. `/RunningCalendar/` for the home calendar).
 - **`destination_url`** — Full URL opened for external race details (from `detail_url` in the data model).
+- **`start` / `end`** — Inclusive calendar-day bounds for the selected range (ISO `YYYY-MM-DD`, local). Duplicated as `date_range_start` / `date_range_end` for dashboards that already use those names.

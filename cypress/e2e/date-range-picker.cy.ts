@@ -1,7 +1,14 @@
 describe('Date range picker', () => {
 	beforeEach(() => {
 		cy.clock(new Date(2026, 3, 10).getTime(), ['Date']);
-		cy.visit('/RunningCalendar/');
+		cy.visit('/RunningCalendar/', {
+			onBeforeLoad(win) {
+				// Stub PostHog so `captureEvent` can be asserted without a real key.
+				(win as unknown as { __posthog: { capture: ReturnType<typeof cy.stub> } }).__posthog = {
+					capture: cy.stub().as('posthogCapture'),
+				};
+			},
+		});
 		cy.get('[data-testid="race-date-filter"]').should('have.attr', 'data-hydrated', 'true');
 	});
 
@@ -46,6 +53,23 @@ describe('Date range picker', () => {
 		});
 
 		cy.get('.race-card:not([hidden])').should('have.length.greaterThan', 0);
+	});
+
+	it('debounces date_range_selected and sends start/end on the analytics payload', () => {
+		cy.get('[data-testid="date-range-trigger"]').click();
+		cy.get('[data-day="2026-04-10"]').click();
+		cy.get('[data-day="2026-04-12"]').click();
+		cy.get('[data-testid="date-range-picker"]').should('have.attr', 'data-state', 'valid');
+
+		cy.get('@posthogCapture').should('not.have.been.calledWith', 'date_range_selected');
+		cy.tick(400);
+		cy.get('@posthogCapture').should('have.been.calledWith', 'date_range_selected', {
+			start: '2026-04-10',
+			end: '2026-04-12',
+			date_range_start: '2026-04-10',
+			date_range_end: '2026-04-12',
+			source_page: '/RunningCalendar/',
+		});
 	});
 
 	it('clears the filter when the range is cleared', () => {
