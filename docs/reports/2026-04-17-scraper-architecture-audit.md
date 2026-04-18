@@ -13,7 +13,7 @@ The scrapers ship a working pipeline and reasonable unit tests, but the module l
 | 1 | Single responsibility per module | **High** | 5 | ✅ resolved — see §1.1–§1.5 |
 | 2 | Separation of concerns (ports & adapters) | **High** | 4 | no HTTP / DB / LLM / browser ports; tests monkey-patch deep paths |
 | 3 | Dependency inversion & explicit configuration | Medium | 3 | four copies of `_session()`; implicit DB connection on every scrape |
-| 4 | Single source of truth (DRY) | **High** | 7 | `ScrapedRace` lives in `iguana.py`; two parallel race-row schemas; duplicated month tables |
+| 4 | Single source of truth (DRY) | **High** | 7 | ✅ resolved — see §4.1–§4.7 |
 | 5 | Testability & open-closed extensibility | Medium | 4 | ✅ resolved — see §5.1–§5.4 |
 
 Original net assessment: the package had **one architecturally central module (`iguana.py`)** that every other scraper quietly depended on, and **two parallel contracts for the race row** (legacy `RACES_HEADER` vs `RACE_ROW_KEYS`). Both items are now resolved via `race_row.py`, `http.py`, and `locale_pt.py`; `iguana.py` is provider-specific again.
@@ -99,58 +99,49 @@ Both `db_ref._connect` and `supabase_sync.sync_scraped_rows_to_supabase` read en
 
 > "Every shared concept is defined once."
 
-### 4.1 `ScrapedRace` and `RACES_HEADER` live in `iguana.py`
+> **Status: resolved in this PR.** Each sub-item below now carries a "resolved" note pointing at the commit or section that addressed it. The original text is preserved for context.
 
-The canonical race-row dataclass is defined in a provider-specific module and re-exported across the codebase:
+### 4.1 `ScrapedRace` and `RACES_HEADER` live in `iguana.py` ✅ resolved
 
-- `corre_brasil.py:14` — `from …iguana import ScrapedRace, format_races_csv`
-- `running_land.py:14` — same
-- `yescom.py:12` — `from …iguana import RACES_HEADER, ScrapedRace, scraped_to_csv_rows`
-- `merge_csv.py:16` — `from …iguana import RACES_HEADER, parse_races_csv`
+Original: the canonical race-row dataclass lived in a provider-specific module; every other scraper imported from `iguana`.
 
-If Iguana the provider goes away, deleting `iguana.py` becomes impossible. Move to `race_row.py` (or a `_shared/` sub-package).
+**Resolution.** Extracted to `race_row.py` in commit `7ef8cba` (see also §5.4). Every provider scraper and `supabase_sync.py` / `merge_csv.py` now import from the neutral module; `iguana.py` re-exports the names for backwards compatibility.
 
-### 4.2 Two parallel race-row schemas
+### 4.2 Two parallel race-row schemas ✅ resolved
 
-| Source | Keys | Location |
-|--------|------|----------|
-| Legacy scrapers | `RACES_HEADER` tuple (9 keys) | `iguana.py:238` |
-| AI scraper | `RACE_ROW_KEYS` tuple (9 keys) | `ai_scraper/schema.py:22` |
+Original: `RACES_HEADER` (legacy) and `RACE_ROW_KEYS` (AI scraper) were two independent 9-tuples of the same keys.
 
-The two lists are **identical today** but drift-prone: any change has to be mirrored. The AI scraper should import `RACE_ROW_KEYS = RACES_HEADER` (renamed to something provider-neutral), not re-declare it.
+**Resolution.** `ai_scraper/schema.py` imports `RACE_ROW_KEYS` from `race_row`; both tuples are the same object (guarded by `tests/test_race_row.py::test_single_source_of_truth_for_csv_header`).
 
-### 4.3 Duplicated Portuguese month tables
+### 4.3 Duplicated Portuguese month tables ✅ resolved
 
-| File | Identifier | Keys |
-|------|-----------|------|
-| `iguana.py` | `_PT_MONTHS` | `"jan"`, `"fev"`, … (3-letter abbrevs) |
-| `yescom.py` | `_MONTH_TOKEN` | `"jan"`, `"fev"`, … (same) |
-| `corre_brasil.py` | `_PT_MONTHS` | `"janeiro"`, `"fevereiro"`, … (full words) |
+Original: three month tables (`_PT_MONTHS` in iguana, `_MONTH_TOKEN` in yescom, `_PT_MONTHS` full-words in corre_brasil).
 
-Three tables for the same concept, with one renamed and one extended. A `pt_month(raw: str) -> int | None` helper in a shared locale module would normalise both spellings.
+**Resolution.** Collapsed into `locale_pt.py::pt_month_number(raw)` which accepts abbreviated and full-word forms, with or without diacritics (commit `9c677f7`). Legacy prefix-match semantics preserved, covered by `tests/test_locale_pt.py`.
 
-### 4.4 Duplicated `USER_AGENT`
+### 4.4 Duplicated `USER_AGENT` ✅ resolved
 
-Four string literals across `iguana.py`, `corre_brasil.py`, `running_land.py`, `yescom.py`, `ai_scraper/loader.py`. See §3.1; the semantic divergence (RunningLand uses a Chrome UA) is the hazard, not the duplication.
+Original: four `USER_AGENT` string literals drifted silently between bot-friendly (`RunningCalendarBot/1.0 …`) and Chrome (`running_land`).
 
-### 4.5 Duplicated distance-label heuristics
+**Resolution.** `http.py::DEFAULT_USER_AGENT` and `make_session()` own the default; Running Land's Chrome UA is now an **explicit override** (`BROWSER_USER_AGENT` + `extra_headers`) rather than a copy-paste quirk (commit `a20f60e`). `tests/test_http.py::test_every_scraper_uses_shared_helper` asserts no provider re-declares the constant.
 
-| Function | Behaviour |
-|----------|-----------|
-| `iguana._distance_slugs_from_labels` | reject unknown km (raises) |
-| `corre_brasil._distance_slugs_from_blob` | silently drop unknown km |
-| `running_land._distance_slugs_from_modality_ids` | silently drop unknown km |
-| `ai_scraper.distance.normalize_distance_slugs` | accept **any** tenths-of-km value, bypassing the DB whitelist |
+### 4.5 Duplicated distance-label heuristics ✅ resolved
 
-Four parsers, four policies about what to do when a km value is not in `public.distances`. The AI scraper's policy is especially divergent: it invents slugs like `3-7km` that might not exist in the reference table, and the downstream inserter would fail. The scraper pipeline has no shared `label → km → validated slug` step.
+Original: four scrapers implemented the same looks-up / dedupe / sort step with subtly different policies on unknown km. The AI scraper was the worst offender — it could invent slugs like `3-7km` absent from `public.distances`, which would later fail FK validation during `--save-to`.
 
-### 4.6 Hard-coded type-slug whitelist in the AI scraper
+**Resolution.** New `distance_slugs.py::kms_to_distance_slugs(kms, km_to_slug, *, strict)` centralises the looks-up / dedupe / sort logic. The three provider scrapers now delegate to it (`strict=True` for Iguana, `strict=False` for Corre Brasil and Running Land). `ai_scraper.distance.normalize_distance_slugs` gained an optional `valid_slugs=` whitelist so callers can pass the `public.distances` slug set to drop invented entries. Covered by `tests/test_distance_slugs.py` and `tests/test_ai_scraper_injected_whitelists.py`.
 
-`ai_scraper/scraper.py:62` — `if type_slug not in {"road", "trail", "adventure"}: type_slug = "road"`. Legacy scrapers call `load_valid_type_slugs()` against the live DB; this one hard-codes the set. Adding a new type in Supabase requires a code edit here.
+### 4.6 Hard-coded type-slug whitelist in the AI scraper ✅ resolved
 
-### 4.7 Brazilian state-name map only in `corre_brasil.py`
+Original: `ai_scraper/scraper.py::_postprocess` hard-coded `{road, trail, adventure}` and the `country="Brasil"` default.
 
-`_BR_STATE_NAME_TO_UF` (26 entries, `corre_brasil.py:22-50`) is a shared Brazilian concept. `running_land.py` and `yescom.py` parse state tokens with different, weaker heuristics (`len(token) == 2 and token.isalpha()`). Move to a neutral `br_locale.py` so all three scrapers and the AI post-processor can normalise `"Minas Gerais"` identically.
+**Resolution.** `scrape_race_with_ai()` now accepts `valid_types=`, `valid_distance_slugs=`, and `default_country=` kwargs. When the model produces a type outside the whitelist, the fallback is `road` if present in the whitelist, otherwise the alphabetically-first registered slug (never silent reintroduction of `road`). The legacy `{road, trail, adventure}` set is exported as `DEFAULT_VALID_TYPE_SLUGS` for composition-root callers that need to opt into the historical behaviour. Covered by `tests/test_ai_scraper_injected_whitelists.py`.
+
+### 4.7 Brazilian state-name map only in `corre_brasil.py` ✅ resolved
+
+Original: the 26-entry state-UF map lived only inside `corre_brasil.py`; `running_land.py` and `yescom.py` fell back to weaker heuristics.
+
+**Resolution.** Moved to `locale_pt.py::br_state_uf(raw)`; shares the same NFKD accent-stripping helper as the month table (commit `9c677f7`). Covered by `tests/test_locale_pt.py::test_br_state_uf_accepts_accented_and_normalised`.
 
 ## Principle 5 — Testability and open-closed extensibility
 
@@ -191,7 +182,7 @@ These are ordered by value-to-effort (not by severity), with cross-references to
 3. ✅ **Fix `CALESCE` → `COALESCE` in `db_ref.py`** and cover with a fake-cursor unit test (§5.3).
 4. ✅ **Shared locale module** for Portuguese months and Brazilian-state UF mapping (§4.3, §4.7) — implemented as `locale_pt.py`.
 5. ✅ **Define `Scraper` protocol and an explicit registry** in `run_scrapers.py` (§1.5, §5.1). Typed orchestration replaces filesystem discovery.
-6. **Pull hard-coded type whitelist and `country="Brasil"` default** out of `ai_scraper/scraper.py::_postprocess` (§4.6). Replace with injected `ReferenceData`.
+6. ✅ **Pull hard-coded type whitelist and `country="Brasil"` default** out of `ai_scraper/scraper.py::_postprocess` (§4.6) — injected via `valid_types=` / `valid_distance_slugs=` / `default_country=` kwargs on `scrape_race_with_ai`.
 
 ## What already looks good
 
