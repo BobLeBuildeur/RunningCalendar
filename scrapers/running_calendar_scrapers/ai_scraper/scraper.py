@@ -41,6 +41,15 @@ they no longer need to monkey-patch the ``scraper.load_page`` attribute path.
 """
 
 
+# Fallback whitelist used when the caller does not supply ``valid_types``. These
+# are the three slugs the AI scraper has historically coerced into; adding a new
+# type in Supabase should be a caller-side concern (pass ``valid_types=``), not
+# a code edit here.
+DEFAULT_VALID_TYPE_SLUGS: frozenset[str] = frozenset({"road", "trail", "adventure"})
+DEFAULT_TYPE_SLUG = "road"
+DEFAULT_COUNTRY = "Brasil"
+
+
 def _default_page_loader(url: str, prefer: str) -> LoadedPage:
 	return load_page(url, prefer=prefer)
 
@@ -66,18 +75,32 @@ class AIScraperResult:
 	page: LoadedPage | None = field(default=None, repr=False)
 
 
-def _postprocess(row: dict[str, Any], url: str) -> dict[str, str]:
+def _postprocess(
+	row: dict[str, Any],
+	url: str,
+	*,
+	valid_types: frozenset[str] | set[str] | None,
+	valid_distance_slugs: set[str] | None,
+	default_country: str,
+) -> dict[str, str]:
 	out = ensure_all_keys(row)
 	out["detailUrl"] = url
-	out["distanceSlugs"] = normalize_distance_slugs(out.get("distanceSlugs", ""))
-	type_slug = slugify(out.get("typeSlug") or "road") or "road"
-	if type_slug not in {"road", "trail", "adventure"}:
-		type_slug = "road"
+	out["distanceSlugs"] = normalize_distance_slugs(
+		out.get("distanceSlugs", ""),
+		valid_slugs=valid_distance_slugs,
+	)
+	type_whitelist = valid_types or DEFAULT_VALID_TYPE_SLUGS
+	type_slug = slugify(out.get("typeSlug") or DEFAULT_TYPE_SLUG) or DEFAULT_TYPE_SLUG
+	# Fall back to "road" only when it is itself a valid type; otherwise pick
+	# any deterministic slug from the whitelist so callers who register a
+	# different type set aren't silently forced back to "road".
+	if type_slug not in type_whitelist:
+		type_slug = DEFAULT_TYPE_SLUG if DEFAULT_TYPE_SLUG in type_whitelist else next(iter(sorted(type_whitelist)))
 	out["typeSlug"] = type_slug
 	prov_raw = slugify(out.get("providerSlug") or "")
 	out["providerSlug"] = prov_raw or provider_slug_from_url(url)
 	if not out.get("country"):
-		out["country"] = "Brasil"
+		out["country"] = default_country
 	return out
 
 
@@ -90,6 +113,9 @@ def scrape_race_with_ai(
 	vision_model: str | None = None,
 	client: Any | None = None,
 	page_loader: PageLoader | None = None,
+	valid_types: frozenset[str] | set[str] | None = None,
+	valid_distance_slugs: set[str] | None = None,
+	default_country: str = DEFAULT_COUNTRY,
 ) -> AIScraperResult:
 	"""Scrape a single race row from an arbitrary running-race page.
 
@@ -112,12 +138,31 @@ def scrape_race_with_ai(
 		Injected page-loader port (``(url, prefer) -> LoadedPage``). Defaults
 		to :func:`running_calendar_scrapers.ai_scraper.loader.load_page`; tests
 		pass a fake so they do not need to monkey-patch imports.
+	valid_types:
+		Whitelist of ``type_slug`` values (typically loaded from
+		``public.types``). Model output outside this set falls back to
+		``road`` when present, otherwise to the alphabetically-first slug.
+		Defaults to :data:`DEFAULT_VALID_TYPE_SLUGS` when ``None``.
+	valid_distance_slugs:
+		Whitelist of ``distance_slug`` values (typically loaded from
+		``public.distances``). Derived slugs not in the whitelist are
+		dropped, so the LLM cannot invent slugs that would later fail FK
+		validation during ``--save-to``.
+	default_country:
+		Country label used when the model does not supply one. Defaults
+		to :data:`DEFAULT_COUNTRY` (``"Brasil"``).
 	"""
 	if not url:
 		raise AIScraperError("url is required")
 
 	loader = page_loader or _default_page_loader
 	page = loader(url, prefer_loader)
+
+	post_kwargs: dict[str, Any] = {
+		"valid_types": valid_types,
+		"valid_distance_slugs": valid_distance_slugs,
+		"default_country": default_country,
+	}
 
 	text_kwargs: dict[str, Any] = {
 		"url": url,
@@ -131,7 +176,7 @@ def scrape_race_with_ai(
 
 	if text_row:
 		return AIScraperResult(
-			race=_postprocess(text_row, url),
+			race=_postprocess(text_row, url, **post_kwargs),
 			source="text",
 			page=page,
 		)
@@ -158,7 +203,7 @@ def scrape_race_with_ai(
 		)
 
 	return AIScraperResult(
-		race=_postprocess(vision_row, url),
+		race=_postprocess(vision_row, url, **post_kwargs),
 		source="image",
 		images_inspected=len(image_urls),
 		page=page,
@@ -168,6 +213,9 @@ def scrape_race_with_ai(
 __all__ = [
 	"AIScraperError",
 	"AIScraperResult",
+	"DEFAULT_COUNTRY",
+	"DEFAULT_TYPE_SLUG",
+	"DEFAULT_VALID_TYPE_SLUGS",
 	"PageLoader",
 	"RACE_ROW_KEYS",
 	"scrape_race_with_ai",
