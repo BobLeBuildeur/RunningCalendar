@@ -4,7 +4,7 @@ Suggested event names and funnel mapping for **RunningCalendar**, aligned with t
 
 ## Naming conventions (summary)
 
-- **Event names:** `<object>_<action>` — describe *what* happened, not the UI control (e.g. prefer `race_saved` over `heart_clicked`).
+- **Event names:** `<object>_<action>` — describe *what* happened, not the UI control (e.g. prefer `race_favorite_selected` with `is_saved` over `heart_clicked`).
 - **Verbs (controlled vocabulary):** `viewed`, `clicked`, `started`, `completed`, `failed`, `submitted`, `selected`.
 - **Properties:** `snake_case`, descriptive full words (e.g. `race_id`, `source_page`).
 
@@ -16,7 +16,7 @@ Stages follow the primary journey in [user-journey.md](./user-journey.md).
 | --- | --- |
 | Land on the calendar | `calendar_viewed` |
 | Filter to find a race | `location_selected`, `distance_range_selected`, `date_range_selected`, `saved_filter_selected` |
-| Favorite a race | `race_saved`, `race_unsaved` |
+| Favorite a race | `race_favorite_selected` |
 | Open race details | `race_detail_clicked` |
 
 ## Event catalog
@@ -28,8 +28,7 @@ Stages follow the primary journey in [user-journey.md](./user-journey.md).
 | `distance_range_selected` | Active | Product Analytics | User changed the distance range filter (min/max km). Omit or no-op when the UI hides distance bounds. | `distance_min_km`, `distance_max_km`, `source_page` |
 | `date_range_selected` | Active | Product Analytics | User applied a date range filter on the calendar. | `date_range_start`, `date_range_end`, `source_page` |
 | `saved_filter_selected` | Active | Product Analytics | User turned “saved races only” on or off. | `saved_only` (boolean), `source_page` |
-| `race_saved` | Active | Product Analytics | User added a race to their saved list (browser persistence). | `race_id`, `race_name`, `source_page` |
-| `race_unsaved` | Active | Product Analytics | User removed a race from their saved list. | `race_id`, `race_name`, `source_page` |
+| `race_favorite_selected` | Active | Product Analytics | User changed whether a race is saved for later (browser persistence). Fire once per toggle with the new state. | `race_id`, `race_name`, `is_saved` (boolean), `source_page` |
 | `race_detail_clicked` | Active | Product Analytics | User followed the primary detail action from a race card (opens the organizer URL; external). | `race_id`, `destination_url`, `source_page` |
 
 ### Property notes
