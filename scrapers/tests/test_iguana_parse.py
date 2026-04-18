@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from running_calendar_scrapers.db_ref import fixture_km_to_slug_iguana_html_tests, repo_root
+from running_calendar_scrapers.db_ref import repo_root
 from running_calendar_scrapers.iguana import scrape_race
+from tests._fixtures import km_to_slug_iguana_html_tests
 
 
 def test_seven_run_distances():
-	km = fixture_km_to_slug_iguana_html_tests()
+	km = km_to_slug_iguana_html_tests()
 	html = (repo_root() / "scrapers" / "tests" / "fixtures" / "iguana_seven_run_2026.html").read_text(
 		encoding="utf-8",
 	)
@@ -22,7 +23,7 @@ def test_seven_run_distances():
 
 
 def test_kids_run_note():
-	km = fixture_km_to_slug_iguana_html_tests()
+	km = km_to_slug_iguana_html_tests()
 	html = (repo_root() / "scrapers" / "tests" / "fixtures" / "iguana_kids_stronger_2026.html").read_text(
 		encoding="utf-8",
 	)
