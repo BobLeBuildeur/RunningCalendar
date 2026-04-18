@@ -164,10 +164,42 @@ function buildCalendarModel(
 }
 
 /**
+ * Deterministic minimal calendar for E2E / agent builds when no database is available.
+ * Set `RUNNINGCALENDAR_E2E_FIXTURE=1` during `astro build` (see `preview:e2e` script).
+ */
+function loadE2eFixtureCalendar(): CalendarModel {
+	const distances: DistanceRow[] = [{ slug: '10k', km: 10 }];
+	const types: TypeRow[] = [{ slug: 'road', type: 'Road' }];
+	const providers: ProviderRow[] = [
+		{ slug: 'fixture', name: 'Fixture Org', website: 'https://example.com' },
+	];
+	const races: RaceRow[] = [];
+	for (let d = 1; d <= 30; d++) {
+		const day = String(d).padStart(2, '0');
+		races.push({
+			sortKey: `2026-04-${day}T08:00`,
+			city: 'São Paulo',
+			state: 'SP',
+			country: 'Brasil',
+			name: `Corrida fixture ${day}`,
+			typeSlug: 'road',
+			distanceSlugs: ['10k'],
+			providerSlug: 'fixture',
+			detailUrl: `https://example.com/fixture-race-2026-04-${day}`,
+		});
+	}
+	return buildCalendarModel(distances, types, providers, races);
+}
+
+/**
  * Load all calendar data from Supabase (PostgreSQL). Call from Astro frontmatter
  * (`const calendar = await loadCalendar()`).
  */
 export async function loadCalendar(): Promise<CalendarModel> {
+	if (process.env.RUNNINGCALENDAR_E2E_FIXTURE === '1') {
+		return loadE2eFixtureCalendar();
+	}
+
 	const db = await loadCalendarFromDatabase();
 
 	const distances: DistanceRow[] = db.distances.map((d) => ({

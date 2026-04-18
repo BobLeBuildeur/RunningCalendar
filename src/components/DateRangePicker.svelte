@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { Calendar, Check, CircleAlert } from 'lucide';
 	import {
 		applyDayClick,
@@ -10,6 +11,9 @@
 	} from '../lib/dateRangePickerLogic';
 	import { captureEvent, SOURCE_PAGE } from '../lib/analytics';
 	import LucideIcon from './LucideIcon.svelte';
+
+	/** Debounce analytics so we only record after the user stops changing the range (ms). */
+	const DATE_RANGE_ANALYTICS_DEBOUNCE_MS = 400;
 
 	let {
 		id = 'date-range-picker',
@@ -29,7 +33,30 @@
 	/** Skip analytics on the first range dispatch (initial sync). */
 	let dateRangeAnalyticsReady = false;
 
+	let dateRangeAnalyticsTimer: ReturnType<typeof setTimeout> | null = null;
+
 	const state = $derived(outputState(start, end));
+
+	function cancelPendingDateRangeAnalytics() {
+		if (dateRangeAnalyticsTimer !== null) {
+			clearTimeout(dateRangeAnalyticsTimer);
+			dateRangeAnalyticsTimer = null;
+		}
+	}
+
+	function scheduleDateRangeAnalytics(startKey: string, endKey: string) {
+		cancelPendingDateRangeAnalytics();
+		dateRangeAnalyticsTimer = setTimeout(() => {
+			dateRangeAnalyticsTimer = null;
+			captureEvent('date_range_selected', {
+				start: startKey,
+				end: endKey,
+				date_range_start: startKey,
+				date_range_end: endKey,
+				source_page: SOURCE_PAGE,
+			});
+		}, DATE_RANGE_ANALYTICS_DEBOUNCE_MS);
+	}
 
 	function dispatchRange() {
 		const detail =
@@ -39,23 +66,23 @@
 		document.dispatchEvent(
 			new CustomEvent('runningcalendar:daterange', { detail, bubbles: true }),
 		);
-		if (
-			dateRangeAnalyticsReady &&
-			detail.state === 'valid' &&
-			detail.start &&
-			detail.end
-		) {
-			captureEvent('date_range_selected', {
-				date_range_start: detail.start,
-				date_range_end: detail.end,
-				source_page: SOURCE_PAGE,
-			});
+		if (!dateRangeAnalyticsReady) {
+			dateRangeAnalyticsReady = true;
+			return;
 		}
-		dateRangeAnalyticsReady = true;
+		if (detail.state === 'valid' && detail.start && detail.end) {
+			scheduleDateRangeAnalytics(detail.start, detail.end);
+		} else {
+			cancelPendingDateRangeAnalytics();
+		}
 	}
 
 	$effect(() => {
 		dispatchRange();
+	});
+
+	onDestroy(() => {
+		cancelPendingDateRangeAnalytics();
 	});
 
 	function setViewFromKey(key: DateKey | null) {
