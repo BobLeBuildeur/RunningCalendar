@@ -10,47 +10,49 @@ The scrapers ship a working pipeline and reasonable unit tests, but the module l
 
 | # | Principle | Severity | Count | Examples |
 |---|-----------|----------|-------|----------|
-| 1 | Single responsibility per module | **High** | 5 | `iguana.py` mixes 7 concerns; `db_ref.py` hosts test fixtures |
+| 1 | Single responsibility per module | **High** | 5 | ✅ resolved — see §1.1–§1.5 |
 | 2 | Separation of concerns (ports & adapters) | **High** | 4 | no HTTP / DB / LLM / browser ports; tests monkey-patch deep paths |
 | 3 | Dependency inversion & explicit configuration | Medium | 3 | four copies of `_session()`; implicit DB connection on every scrape |
 | 4 | Single source of truth (DRY) | **High** | 7 | `ScrapedRace` lives in `iguana.py`; two parallel race-row schemas; duplicated month tables |
 | 5 | Testability & open-closed extensibility | Medium | 4 | ✅ resolved — see §5.1–§5.4 |
 
-Net assessment: the package has **one architecturally central module (`iguana.py`)** that every other scraper quietly depends on, and **two parallel contracts for the race row** (legacy `RACES_HEADER` vs `RACE_ROW_KEYS`). Fixing those two items would unlock most of the improvements below with minimal behaviour change.
+Original net assessment: the package had **one architecturally central module (`iguana.py`)** that every other scraper quietly depended on, and **two parallel contracts for the race row** (legacy `RACES_HEADER` vs `RACE_ROW_KEYS`). Both items are now resolved via `race_row.py`, `http.py`, and `locale_pt.py`; `iguana.py` is provider-specific again.
 
 ## Principle 1 — Single responsibility per module
 
 > "A module should have one reason to change."
 
-### 1.1 `iguana.py` mixes seven concerns
+> **Status: resolved in this PR.** Each sub-item below now carries a "resolved" note pointing at the commit that addressed it. The original text is preserved for context.
 
-`scrapers/running_calendar_scrapers/iguana.py` (290 lines) is simultaneously:
+### 1.1 `iguana.py` mixes seven concerns ✅ resolved
 
-1. the Iguana-specific HTTP fetcher (`_session`, `fetch_race_article`, `CALENDAR_URL`);
-2. the Iguana HTML parser (`_parse_event_datetime`, `_parse_location`, `_parse_title`, `_parse_distance_labels`);
-3. the canonical race-row **dataclass** `ScrapedRace` (imported by every other scraper);
-4. the canonical **CSV header** `RACES_HEADER` (imported by `yescom.py`, `merge_csv.py`);
-5. the generic CSV writer `format_races_csv` / reader `parse_races_csv`;
-6. a month-token table `_PT_MONTHS` / `_EN_MONTHS`;
-7. a CLI `run(argv)`.
+Original: `iguana.py` was the HTTP fetcher **and** HTML parser **and** canonical `ScrapedRace` dataclass **and** CSV writer **and** month table **and** CLI.
 
-Any change to the shared row shape, CSV serialisation, or month handling touches this Iguana-named file, and every other scraper's import graph fans out through it. Recommendation: extract `ScrapedRace`, `RACES_HEADER`, and the CSV helpers to `race_row.py`; keep `iguana.py` provider-specific.
+**Resolution.** Shared concerns extracted to neutral modules: `race_row.py` owns `ScrapedRace`, `RACES_HEADER`, and the CSV helpers (commit `7ef8cba`, part of Principle 5 work); `http.py` owns the session factory and `DEFAULT_USER_AGENT`; `locale_pt.py` owns the Portuguese month / state helpers. `iguana.py` now contains only the Iguana-specific HTTP fetcher, parser, and CLI. Backwards-compatible re-exports remain so existing `from iguana import ...` imports keep working.
 
-### 1.2 `corre_brasil.py`, `running_land.py`, `yescom.py` replicate the same pattern
+### 1.2 `corre_brasil.py`, `running_land.py`, `yescom.py` replicate the same pattern ✅ resolved (scaffolding)
 
-Each file is simultaneously HTTP fetcher + parser + DB whitelist loader + CSV serialiser + CLI. The duplicated scaffolding obscures what is provider-specific (parsing) versus generic (session, CSV, validation, CLI).
+Original: each provider file duplicated HTTP session + month table + locale scaffolding around its parser.
 
-### 1.3 `db_ref.py` hosts test fixture data
+**Resolution.** `http.make_session` and `locale_pt.pt_month_number` / `EN_MONTH_ABBR` / `br_state_uf` collapse the scaffolding duplication; each provider file is now parser + CLI + a one-line `_session()` thin wrapper. Remaining per-provider concerns (DB whitelist loader call, CSV formatting) are delegated via imports rather than re-implemented. Tracking under Principle 2 (reference-data port) for the rest.
 
-`fixture_km_to_slug_iguana_html_tests()` and `fixture_km_to_slug_corre_brasil_repeater()` ship hard-coded maps for offline HTML fixtures. Test fixtures in a production-DB module are a smell: they change for **test** reasons but live next to functions that change for **schema** reasons. Move to `scrapers/tests/_fixtures.py`.
+### 1.3 `db_ref.py` hosts test fixture data ✅ resolved
 
-### 1.4 `supabase_sync.py` smears normalisation into the sync step
+Original: `fixture_km_to_slug_iguana_html_tests()` and `fixture_km_to_slug_corre_brasil_repeater()` lived in a production DB module.
 
-`sync_scraped_rows_to_supabase` both opens the transaction (infrastructure) and calls `partition_scraped_races` (pure validation). The "load existing keys" query and the "insert race + distances" transaction are one atomic unit, but the normalisation step is not — it could (and should) be run before any DB connection is opened, so tests of the sync code path do not need a live Postgres.
+**Resolution.** Moved to `scrapers/tests/_fixtures.py` (renamed `km_to_slug_iguana_html_tests` / `km_to_slug_corre_brasil_repeater` — the `fixture_` prefix was redundant once the module itself conveys role). `db_ref.py` is now schema-shaped reference loaders only.
 
-### 1.5 `run_scrapers.py` couples CLI, module discovery, and sync
+### 1.4 `supabase_sync.py` smears normalisation into the sync step ✅ resolved
 
-`discover_scraper_names()` reaches into the package filesystem with `Path(...).glob("*.py")` and calls `importlib.import_module` as a side effect of listing. A registry-based discovery (each scraper registers itself via an explicit list or entry point) would make the orchestrator dependency-light and typeable.
+Original: `sync_scraped_rows_to_supabase` both opened the psycopg2 transaction and ran normalisation, so the planning logic could only be tested through a live Postgres.
+
+**Resolution.** Extracted `plan_supabase_sync(rows, existing_keys, *, data_dir) -> SupabaseSyncPlan` as a pure function with no DB imports. `sync_scraped_rows_to_supabase` is now the composition root: fetch existing keys → plan → apply plan → commit/rollback. It also accepts an injectable `conn=` kwarg so callers can share a transaction. `tests/test_supabase_sync.py` covers the planner (insert / duplicate / FK skip) and the composition root via a fake DB-API connection (happy path, dup short-circuit, INSERT rollback, empty-rows noop).
+
+### 1.5 `run_scrapers.py` couples CLI, module discovery, and sync ✅ resolved
+
+Original: `discover_scraper_names()` walked `Path.glob("*.py")` and called `importlib.import_module` as a side effect of listing.
+
+**Resolution.** Replaced by the typed `Scraper` Protocol and explicit `SCRAPER_ENTRIES` registry in `scraper_registry.py` (commit `2dd6233`, already covered under Principle 5.1). `run_scrapers.py` now depends on `available_scrapers()` / `expand_scraper_names()` / `get_scraper()` and has no filesystem awareness.
 
 ## Principle 2 — Separation of concerns (ports & adapters)
 
@@ -187,7 +189,7 @@ These are ordered by value-to-effort (not by severity), with cross-references to
 1. ✅ **Extract `race_row.py`** — `ScrapedRace`, `RACES_HEADER`, `RACE_ROW_KEYS`, `format_races_csv`, `parse_races_csv`, `scraped_to_csv_rows` now live in a neutral module (§1.1, §4.1, §4.2, §5.4).
 2. **Introduce three ports** (`HttpClient`, `ReferenceData`, `PageLoader`) in a `ports.py` module; default adapters keep current behaviour (§2.1, §2.2, §2.4). Medium effort, high payoff on testability. **Partial:** the `PageLoader` port exists on the AI scraper (§5.2); the HTTP and reference-data ports remain outstanding.
 3. ✅ **Fix `CALESCE` → `COALESCE` in `db_ref.py`** and cover with a fake-cursor unit test (§5.3).
-4. **Shared locale module** for Portuguese months and Brazilian-state UF mapping (§4.3, §4.7). Removes drift risk.
+4. ✅ **Shared locale module** for Portuguese months and Brazilian-state UF mapping (§4.3, §4.7) — implemented as `locale_pt.py`.
 5. ✅ **Define `Scraper` protocol and an explicit registry** in `run_scrapers.py` (§1.5, §5.1). Typed orchestration replaces filesystem discovery.
 6. **Pull hard-coded type whitelist and `country="Brasil"` default** out of `ai_scraper/scraper.py::_postprocess` (§4.6). Replace with injected `ReferenceData`.
 
@@ -198,6 +200,8 @@ These are ordered by value-to-effort (not by severity), with cross-references to
 - The AI scraper's post-processing is already testable end-to-end via an injected client (see `test_ai_scraper_pipeline.py`). Generalising that pattern to the legacy scrapers is the unlock.
 
 ## Appendix — file-to-principle map
+
+This matrix reflects the **original audit state**. See the per-section "resolved" notes above for the current state after this PR.
 
 | File | P1 | P2 | P3 | P4 | P5 |
 |------|----|----|----|----|----|
