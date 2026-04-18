@@ -34,6 +34,7 @@
 	class="save-race"
 	data-testid="save-race-button"
 	data-race-id={raceId}
+	data-race-name={raceName ?? ''}
 	data-saved="false"
 	aria-pressed="false"
 	aria-label={baseAriaLabel}

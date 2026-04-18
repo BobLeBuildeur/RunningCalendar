@@ -4,6 +4,7 @@ import MapPin from '@lucide/astro/icons/map-pin';
 import RaceDateFilter from '../components/RaceDateFilter.svelte';
 import RaceDistanceFilter from '../components/RaceDistanceFilter.svelte';
 import RaceItem from '../components/RaceItem.svelte';
+import PostHogInit from '../components/PostHogInit.svelte';
 import RaceSavedFilter from '../components/RaceSavedFilter.svelte';
 import { formatRaceLocationLine, loadCalendar } from '../data/races';
 import { SAVED_RACES_STORAGE_KEY } from '../lib/savedRaces';
@@ -166,7 +167,8 @@ const filterBarInnerClass =
 			}
 		</style>
 	</head>
-	<body class="layout">
+	<body class="layout" data-rc-source-page="/RunningCalendar/">
+		<PostHogInit client:load />
 		<div class="layout__container">
 			<div class="grid">
 				<header class="grid__col grid__col--span-12 page-header">
@@ -410,7 +412,26 @@ const filterBarInnerClass =
 				applyRaceFilters();
 			});
 
-			document.getElementById('race-location-filter')?.addEventListener('change', applyRaceFilters);
+			function analyticsCapture(event, props) {
+				if (typeof window.__rcCapture === 'function') window.__rcCapture(event, props);
+			}
+
+			function sourcePagePath() {
+				const b = document.body;
+				const raw = b?.dataset?.rcSourcePage;
+				return typeof raw === 'string' && raw.length > 0 ? raw : '/RunningCalendar/';
+			}
+
+			document.getElementById('race-location-filter')?.addEventListener('change', (e) => {
+				const sel = e.target;
+				const locationValue =
+					sel instanceof HTMLSelectElement ? sel.value.trim() : '';
+				analyticsCapture('location_selected', {
+					location_value: locationValue === '' ? 'all' : locationValue,
+					source_page: sourcePagePath(),
+				});
+				applyRaceFilters();
+			});
 
 			// ----- Save-race heart button (delegated handler) -----
 			function writeSavedIds(ids) {
@@ -460,6 +481,13 @@ const filterBarInnerClass =
 					ids.delete(id);
 				}
 				writeSavedIds(ids);
+				const nameRaw = btn.getAttribute('data-race-name') ?? '';
+				analyticsCapture('race_favorite_selected', {
+					race_id: id,
+					race_name: nameRaw.length > 0 ? nameRaw : id,
+					is_saved: nextSaved,
+					source_page: sourcePagePath(),
+				});
 				// Update the single button immediately; other occurrences of the same
 				// id (should not happen but safe) are also refreshed below.
 				document
@@ -472,6 +500,21 @@ const filterBarInnerClass =
 			});
 
 			hydrateSaveButtons();
+
+			document.addEventListener('click', (event) => {
+				const t = event.target;
+				if (!(t instanceof Element)) return;
+				const a = t.closest('a.race-card__action');
+				if (!(a instanceof HTMLAnchorElement)) return;
+				const card = a.closest('.race-card');
+				const raceId = card?.getAttribute('data-race-id') ?? '';
+				if (!raceId) return;
+				analyticsCapture('race_detail_clicked', {
+					race_id: raceId,
+					destination_url: a.href,
+					source_page: sourcePagePath(),
+				});
+			});
 
 			applyRaceFilters();
 		</script>

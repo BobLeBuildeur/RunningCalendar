@@ -8,6 +8,7 @@
 		toDateKey,
 		type DateKey,
 	} from '../lib/dateRangePickerLogic';
+	import { captureEvent, SOURCE_PAGE } from '../lib/analytics';
 	import LucideIcon from './LucideIcon.svelte';
 
 	let {
@@ -25,6 +26,9 @@
 	let viewYear = $state(new Date().getFullYear());
 	let viewMonth0 = $state(new Date().getMonth());
 
+	/** Skip analytics on the first range dispatch (initial sync). */
+	let dateRangeAnalyticsReady = false;
+
 	const state = $derived(outputState(start, end));
 
 	function dispatchRange() {
@@ -35,6 +39,19 @@
 		document.dispatchEvent(
 			new CustomEvent('runningcalendar:daterange', { detail, bubbles: true }),
 		);
+		if (
+			dateRangeAnalyticsReady &&
+			detail.state === 'valid' &&
+			detail.start &&
+			detail.end
+		) {
+			captureEvent('date_range_selected', {
+				date_range_start: detail.start,
+				date_range_end: detail.end,
+				source_page: SOURCE_PAGE,
+			});
+		}
+		dateRangeAnalyticsReady = true;
 	}
 
 	$effect(() => {
