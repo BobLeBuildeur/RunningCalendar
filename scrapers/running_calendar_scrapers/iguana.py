@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 
 from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
 from running_calendar_scrapers.http import make_session
+from running_calendar_scrapers.locale_pt import EN_MONTH_ABBR, pt_month_number
 # Re-exported so existing call sites (`from iguana import ScrapedRace`, etc.)
 # keep working while the canonical definition lives in ``race_row``.
 from running_calendar_scrapers.race_row import (
@@ -23,36 +24,6 @@ from running_calendar_scrapers.race_row import (
 
 CALENDAR_URL = "https://iguanasports.com.br/blogs/calendario-corridas-de-rua"
 BLOG_PREFIX = "/blogs/calendario-corridas-de-rua/"
-
-_PT_MONTHS = {
-	"jan": 1,
-	"fev": 2,
-	"mar": 3,
-	"abr": 4,
-	"mai": 5,
-	"jun": 6,
-	"jul": 7,
-	"ago": 8,
-	"set": 9,
-	"out": 10,
-	"nov": 11,
-	"dez": 12,
-}
-
-_EN_MONTHS = (
-	"Jan",
-	"Feb",
-	"Mar",
-	"Apr",
-	"May",
-	"Jun",
-	"Jul",
-	"Aug",
-	"Sep",
-	"Oct",
-	"Nov",
-	"Dec",
-)
 
 
 def _session() -> requests.Session:
@@ -92,14 +63,13 @@ def _parse_event_datetime(html: str) -> tuple[datetime, str]:
 	day_s, mon_s, year_s, hh, mm = m.groups()
 	day = int(day_s)
 	year = int(year_s)
-	mon_key = mon_s.lower()[:3]
-	if mon_key not in _PT_MONTHS:
+	month = pt_month_number(mon_s)
+	if month is None:
 		raise ValueError(f"Unknown Portuguese month token: {mon_s!r}")
-	month = _PT_MONTHS[mon_key]
 	dt_naive = datetime(year, month, day, int(hh), int(mm))
 	tz = ZoneInfo("America/Sao_Paulo")
 	dt = dt_naive.replace(tzinfo=tz)
-	display = f"{day} {_EN_MONTHS[month - 1]} {year}, {hh}:{mm}"
+	display = f"{day} {EN_MONTH_ABBR[month - 1]} {year}, {hh}:{mm}"
 	return dt, display
 
 
