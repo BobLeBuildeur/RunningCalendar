@@ -10,6 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.http import make_session
 # Re-exported so existing call sites (`from iguana import ScrapedRace`, etc.)
 # keep working while the canonical definition lives in ``race_row``.
 from running_calendar_scrapers.race_row import (
@@ -22,7 +23,6 @@ from running_calendar_scrapers.race_row import (
 
 CALENDAR_URL = "https://iguanasports.com.br/blogs/calendario-corridas-de-rua"
 BLOG_PREFIX = "/blogs/calendario-corridas-de-rua/"
-USER_AGENT = "RunningCalendarBot/1.0 (+https://github.com/boblebuildeur/RunningCalendar)"
 
 _PT_MONTHS = {
 	"jan": 1,
@@ -56,9 +56,7 @@ _EN_MONTHS = (
 
 
 def _session() -> requests.Session:
-	s = requests.Session()
-	s.headers.update({"User-Agent": USER_AGENT})
-	return s
+	return make_session()
 
 
 def list_calendar_slugs(html: str) -> list[str]:

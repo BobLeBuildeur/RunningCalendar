@@ -11,13 +11,15 @@ from urllib.parse import urlencode
 import requests
 
 from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.http import make_session
 from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
 GRAPHQL_URL = "https://www.runningland.com.br/graphql"
 CALENDAR_CATEGORY_ID = "3"
 EVENT_LIST_PATH = "/eventos"
 # Browser-like UA: the site's edge/WAF rejects several non-browser tokens on GraphQL.
-USER_AGENT = (
+# This override of the shared DEFAULT_USER_AGENT is deliberate and must stay visible.
+BROWSER_USER_AGENT = (
 	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
 	"Chrome/120.0.0.0 Safari/537.36"
 )
@@ -51,16 +53,14 @@ _METADATA_QUERIES: dict[str, str] = {
 
 
 def _session() -> requests.Session:
-	s = requests.Session()
-	s.headers.update(
-		{
-			"User-Agent": USER_AGENT,
+	return make_session(
+		user_agent=BROWSER_USER_AGENT,
+		extra_headers={
 			"Accept": "application/json",
 			"Referer": REFERER,
 			"Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-		}
+		},
 	)
-	return s
 
 
 def _graphql_get(session: requests.Session, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:

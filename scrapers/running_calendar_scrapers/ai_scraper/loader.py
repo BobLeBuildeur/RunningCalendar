@@ -25,8 +25,7 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
-
-USER_AGENT = "RunningCalendarBot/1.0 (+https://github.com/boblebuildeur/RunningCalendar)"
+from running_calendar_scrapers.http import DEFAULT_USER_AGENT
 
 
 @dataclass(frozen=True)
@@ -104,7 +103,7 @@ def _title(html: str) -> str:
 
 def load_via_requests(url: str, *, timeout: int = 30) -> LoadedPage:
 	"""Render via an ``HTTP GET``; use for environments without a browser."""
-	resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=timeout)
+	resp = requests.get(url, headers={"User-Agent": DEFAULT_USER_AGENT}, timeout=timeout)
 	resp.raise_for_status()
 	if resp.encoding is None or resp.encoding.lower() == "iso-8859-1":
 		resp.encoding = resp.apparent_encoding

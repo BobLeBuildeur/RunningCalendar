@@ -9,10 +9,10 @@ import requests
 from bs4 import BeautifulSoup
 
 from running_calendar_scrapers.db_ref import load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.http import make_session
 from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
 CALENDAR_ASP = "https://www.yescom.com.br/yescom/novosite/codigos/calendario_2016.asp"
-USER_AGENT = "RunningCalendarBot/1.0 (+https://github.com/boblebuildeur/RunningCalendar)"
 
 _MONTH_TOKEN = {
 	"jan": 1,
@@ -46,9 +46,7 @@ _EN_MONTHS = (
 
 
 def _session() -> requests.Session:
-	s = requests.Session()
-	s.headers.update({"User-Agent": USER_AGENT})
-	return s
+	return make_session()
 
 
 def _parse_onclick_url(onclick: str) -> str | None:
