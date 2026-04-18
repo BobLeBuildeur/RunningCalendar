@@ -10,6 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.distance_slugs import kms_to_distance_slugs
 from running_calendar_scrapers.http import make_session
 from running_calendar_scrapers.locale_pt import EN_MONTH_ABBR, pt_month_number
 # Re-exported so existing call sites (`from iguana import ScrapedRace`, etc.)
@@ -106,8 +107,7 @@ def _distance_slugs_from_labels(
 	labels: list[str],
 	km_to_slug: dict[float, str],
 ) -> tuple[str, str]:
-	slug_to_km = {slug: km for km, slug in km_to_slug.items()}
-	slugs: list[str] = []
+	kms: list[float] = []
 	for raw in labels:
 		t = raw.strip()
 		if not t:
@@ -119,15 +119,11 @@ def _distance_slugs_from_labels(
 			km = float(t_clean.replace(",", "."))
 		except ValueError:
 			return ("", "")
-		if km not in km_to_slug:
-			raise ValueError(f"No distance slug for km={km} (label {raw!r})")
-		slugs.append(km_to_slug[km])
-	unique: list[str] = []
-	for s in slugs:
-		if s not in unique:
-			unique.append(s)
-	unique.sort(key=lambda s: slug_to_km.get(s, 0.0))
-	return ";".join(unique), ""
+		kms.append(km)
+	# Iguana semantics: an unknown km must surface as an error so the
+	# scraper fails loudly when Iguana adds a distance that is missing
+	# from ``public.distances``.
+	return kms_to_distance_slugs(kms, km_to_slug, strict=True), ""
 
 
 def _parse_distance_labels(html: str) -> list[str]:

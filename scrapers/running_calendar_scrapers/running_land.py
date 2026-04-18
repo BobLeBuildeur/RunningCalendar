@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 import requests
 
 from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.distance_slugs import kms_to_distance_slugs
 from running_calendar_scrapers.http import make_session
 from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
@@ -162,27 +163,15 @@ def _distance_slugs_from_modality_ids(
 	if not (blob or "").strip():
 		return ""
 
-	slug_to_km = {slug: km for km, slug in km_to_slug.items()}
 	raw_ids = [x.strip() for x in blob.split(",") if x.strip()]
-	slugs: list[str] = []
-	modality_labels: list[str] = []
+	kms: list[float] = []
 	for iid in raw_ids:
 		label = modality_id_to_label.get(iid, "")
-		if label:
-			modality_labels.append(label)
 		km = _label_to_km(label) if label else None
-		if km is None or km not in km_to_slug:
+		if km is None:
 			continue
-		slugs.append(km_to_slug[km])
-
-	unique: list[str] = []
-	for s in slugs:
-		if s not in unique:
-			unique.append(s)
-	unique.sort(key=lambda s: slug_to_km.get(s, 0.0))
-	if unique:
-		return ";".join(unique)
-	return ""
+		kms.append(km)
+	return kms_to_distance_slugs(kms, km_to_slug, strict=False)
 
 
 def _city_state_country(
