@@ -185,7 +185,7 @@ const filterBarInnerClass =
 				<section class="filter-bar grid__col grid__col--span-12" aria-label="Filtrar corridas">
 					<div class={filterBarInnerClass}>
 						<div class="filter-bar__field">
-							<label class="filter-bar__label" for="race-location-filter">
+							<label class="filter-bar__label" for="race-location-filter" data-rc-filter-label="location">
 								<MapPin class="filter-bar__label-icon" size={16} aria-hidden={true} />
 								Local
 							</label>
@@ -447,7 +447,11 @@ const filterBarInnerClass =
 			});
 
 			function analyticsCapture(event, props) {
-				if (typeof window.__rcCapture === 'function') window.__rcCapture(event, props);
+				if (typeof window.__rcCapture === 'function') {
+					window.__rcCapture(event, props);
+				} else {
+					window.__posthog?.capture(event, props);
+				}
 			}
 
 			function sourcePagePath() {
@@ -455,6 +459,19 @@ const filterBarInnerClass =
 				const raw = b?.dataset?.rcSourcePage;
 				return typeof raw === 'string' && raw.length > 0 ? raw : '/RunningCalendar/';
 			}
+
+			document.addEventListener('click', (event) => {
+				const t = event.target;
+				if (!(t instanceof Element)) return;
+				const label = t.closest('[data-rc-filter-label]');
+				if (!label) return;
+				const filter = label.getAttribute('data-rc-filter-label');
+				if (!filter) return;
+				analyticsCapture('filter_label_clicked', {
+					filter,
+					source_page: sourcePagePath(),
+				});
+			});
 
 			document.getElementById('race-location-filter')?.addEventListener('change', (e) => {
 				const sel = e.target;

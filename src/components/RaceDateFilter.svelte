@@ -22,7 +22,7 @@
 	data-testid="race-date-filter"
 	data-hydrated={hydrated ? 'true' : 'false'}
 >
-	<p class="race-date-filter__label" id="{fieldId}-heading">
+	<p class="race-date-filter__label" id="{fieldId}-heading" data-rc-filter-label="date">
 		<LucideIcon icon={Calendar} class="race-date-filter__label-icon" size={16} aria-hidden={true} />
 		Data
 	</p>

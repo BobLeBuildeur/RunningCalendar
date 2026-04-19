@@ -42,7 +42,7 @@
 	data-testid="race-saved-filter"
 	data-hydrated={hydrated ? 'true' : 'false'}
 >
-	<p class="race-saved-filter__label" id="{fieldId}-heading">
+	<p class="race-saved-filter__label" id="{fieldId}-heading" data-rc-filter-label="saved">
 		<LucideIcon
 			icon={Heart}
 			class="race-saved-filter__label-icon"
