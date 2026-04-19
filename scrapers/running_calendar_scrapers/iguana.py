@@ -2,70 +2,34 @@
 
 from __future__ import annotations
 
-import csv
-import io
 import re
-from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import requests
 from bs4 import BeautifulSoup
 
-from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.context import get_reference_data
+from running_calendar_scrapers.distance_slugs import kms_to_distance_slugs
+from running_calendar_scrapers.http import make_session
+from running_calendar_scrapers.locale_pt import EN_MONTH_ABBR, pt_month_number
+from running_calendar_scrapers.ports import ReferenceData, load_reference_data_from_db
+# Re-exported so existing call sites (`from iguana import ScrapedRace`, etc.)
+# keep working while the canonical definition lives in ``race_row``.
+from running_calendar_scrapers.race_row import (
+	RACES_HEADER,
+	ScrapedRace,
+	format_races_csv,
+	parse_races_csv,
+	scraped_to_csv_rows,
+)
 
 CALENDAR_URL = "https://iguanasports.com.br/blogs/calendario-corridas-de-rua"
 BLOG_PREFIX = "/blogs/calendario-corridas-de-rua/"
-USER_AGENT = "RunningCalendarBot/1.0 (+https://github.com/boblebuildeur/RunningCalendar)"
-
-_PT_MONTHS = {
-	"jan": 1,
-	"fev": 2,
-	"mar": 3,
-	"abr": 4,
-	"mai": 5,
-	"jun": 6,
-	"jul": 7,
-	"ago": 8,
-	"set": 9,
-	"out": 10,
-	"nov": 11,
-	"dez": 12,
-}
-
-_EN_MONTHS = (
-	"Jan",
-	"Feb",
-	"Mar",
-	"Apr",
-	"May",
-	"Jun",
-	"Jul",
-	"Aug",
-	"Sep",
-	"Oct",
-	"Nov",
-	"Dec",
-)
-
-
-@dataclass(frozen=True)
-class ScrapedRace:
-	sort_key: str
-	city: str
-	state: str
-	country: str
-	name: str
-	type_slug: str
-	distance_slugs: str
-	provider_slug: str
-	detail_url: str
 
 
 def _session() -> requests.Session:
-	s = requests.Session()
-	s.headers.update({"User-Agent": USER_AGENT})
-	return s
+	return make_session()
 
 
 def list_calendar_slugs(html: str) -> list[str]:
@@ -101,14 +65,13 @@ def _parse_event_datetime(html: str) -> tuple[datetime, str]:
 	day_s, mon_s, year_s, hh, mm = m.groups()
 	day = int(day_s)
 	year = int(year_s)
-	mon_key = mon_s.lower()[:3]
-	if mon_key not in _PT_MONTHS:
+	month = pt_month_number(mon_s)
+	if month is None:
 		raise ValueError(f"Unknown Portuguese month token: {mon_s!r}")
-	month = _PT_MONTHS[mon_key]
 	dt_naive = datetime(year, month, day, int(hh), int(mm))
 	tz = ZoneInfo("America/Sao_Paulo")
 	dt = dt_naive.replace(tzinfo=tz)
-	display = f"{day} {_EN_MONTHS[month - 1]} {year}, {hh}:{mm}"
+	display = f"{day} {EN_MONTH_ABBR[month - 1]} {year}, {hh}:{mm}"
 	return dt, display
 
 
@@ -145,8 +108,7 @@ def _distance_slugs_from_labels(
 	labels: list[str],
 	km_to_slug: dict[float, str],
 ) -> tuple[str, str]:
-	slug_to_km = {slug: km for km, slug in km_to_slug.items()}
-	slugs: list[str] = []
+	kms: list[float] = []
 	for raw in labels:
 		t = raw.strip()
 		if not t:
@@ -158,15 +120,11 @@ def _distance_slugs_from_labels(
 			km = float(t_clean.replace(",", "."))
 		except ValueError:
 			return ("", "")
-		if km not in km_to_slug:
-			raise ValueError(f"No distance slug for km={km} (label {raw!r})")
-		slugs.append(km_to_slug[km])
-	unique: list[str] = []
-	for s in slugs:
-		if s not in unique:
-			unique.append(s)
-	unique.sort(key=lambda s: slug_to_km.get(s, 0.0))
-	return ";".join(unique), ""
+		kms.append(km)
+	# Iguana semantics: an unknown km must surface as an error so the
+	# scraper fails loudly when Iguana adds a distance that is missing
+	# from ``public.distances``.
+	return kms_to_distance_slugs(kms, km_to_slug, strict=True), ""
 
 
 def _parse_distance_labels(html: str) -> list[str]:
@@ -215,14 +173,16 @@ def scrape_race(
 	)
 
 
-def scrape_iguana_calendar(*, session: requests.Session | None = None) -> list[ScrapedRace]:
+def scrape_iguana_calendar(
+	*,
+	session: requests.Session | None = None,
+	reference_data: ReferenceData | None = None,
+) -> list[ScrapedRace]:
 	session = session or _session()
-	km_to_slug = load_distance_slugs_by_km()
-	valid_providers = load_valid_provider_slugs()
-	valid_types = load_valid_type_slugs()
-	if "iguana-sports" not in valid_providers:
+	ref = reference_data or get_reference_data() or load_reference_data_from_db()
+	if "iguana-sports" not in ref.valid_provider_slugs:
 		raise RuntimeError("public.providers must include iguana-sports")
-	if "road" not in valid_types:
+	if "road" not in ref.valid_type_slugs:
 		raise RuntimeError("public.types must include road")
 
 	r = session.get(CALENDAR_URL, timeout=60)
@@ -231,54 +191,8 @@ def scrape_iguana_calendar(*, session: requests.Session | None = None) -> list[S
 	out: list[ScrapedRace] = []
 	for slug in slugs:
 		html = fetch_race_article(session, slug)
-		out.append(scrape_race(slug, html, km_to_slug=km_to_slug))
+		out.append(scrape_race(slug, html, km_to_slug=dict(ref.km_to_slug)))
 	return sorted(out, key=lambda x: x.sort_key)
-
-
-RACES_HEADER = [
-	"sortKey",
-	"city",
-	"state",
-	"country",
-	"name",
-	"typeSlug",
-	"distanceSlugs",
-	"providerSlug",
-	"detailUrl",
-]
-
-
-def scraped_to_csv_rows(races: list[ScrapedRace]) -> list[dict[str, str]]:
-	rows: list[dict[str, str]] = []
-	for x in races:
-		rows.append(
-			{
-				"sortKey": x.sort_key,
-				"city": x.city,
-				"state": x.state,
-				"country": x.country,
-				"name": x.name,
-				"typeSlug": x.type_slug,
-				"distanceSlugs": x.distance_slugs,
-				"providerSlug": x.provider_slug,
-				"detailUrl": x.detail_url,
-			}
-		)
-	return rows
-
-
-def format_races_csv(races: list[ScrapedRace]) -> str:
-	buf = io.StringIO()
-	writer = csv.DictWriter(buf, fieldnames=RACES_HEADER, lineterminator="\n")
-	writer.writeheader()
-	for row in scraped_to_csv_rows(races):
-		writer.writerow(row)
-	return buf.getvalue()
-
-
-def parse_races_csv(text: str) -> list[dict[str, str]]:
-	reader = csv.DictReader(io.StringIO(text))
-	return [dict(row) for row in reader]
 
 
 def run(argv: list[str] | None = None) -> str:

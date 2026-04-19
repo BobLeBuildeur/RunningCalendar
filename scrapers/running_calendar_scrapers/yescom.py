@@ -8,47 +8,17 @@ from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
-from running_calendar_scrapers.db_ref import load_valid_provider_slugs, load_valid_type_slugs
-from running_calendar_scrapers.iguana import RACES_HEADER, ScrapedRace, scraped_to_csv_rows
+from running_calendar_scrapers.context import get_reference_data
+from running_calendar_scrapers.http import make_session
+from running_calendar_scrapers.locale_pt import EN_MONTH_ABBR, pt_month_number
+from running_calendar_scrapers.ports import ReferenceData, load_reference_data_from_db
+from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
 CALENDAR_ASP = "https://www.yescom.com.br/yescom/novosite/codigos/calendario_2016.asp"
-USER_AGENT = "RunningCalendarBot/1.0 (+https://github.com/boblebuildeur/RunningCalendar)"
-
-_MONTH_TOKEN = {
-	"jan": 1,
-	"fev": 2,
-	"mar": 3,
-	"abr": 4,
-	"mai": 5,
-	"jun": 6,
-	"jul": 7,
-	"ago": 8,
-	"set": 9,
-	"out": 10,
-	"nov": 11,
-	"dez": 12,
-}
-
-_EN_MONTHS = (
-	"Jan",
-	"Feb",
-	"Mar",
-	"Apr",
-	"May",
-	"Jun",
-	"Jul",
-	"Aug",
-	"Sep",
-	"Oct",
-	"Nov",
-	"Dec",
-)
 
 
 def _session() -> requests.Session:
-	s = requests.Session()
-	s.headers.update({"User-Agent": USER_AGENT})
-	return s
+	return make_session()
 
 
 def _parse_onclick_url(onclick: str) -> str | None:
@@ -63,12 +33,11 @@ def _parse_date_cell(cell: str, year: int) -> tuple[datetime, str]:
 	if not m:
 		raise ValueError(f"Unexpected date cell: {cell!r}")
 	day = int(m.group(1))
-	mon_key = m.group(2).lower()[:3]
-	if mon_key not in _MONTH_TOKEN:
+	month = pt_month_number(m.group(2))
+	if month is None:
 		raise ValueError(f"Unknown month in date cell: {cell!r}")
-	month = _MONTH_TOKEN[mon_key]
 	dt = datetime(year, month, day, 12, 0)
-	display = f"{day} {_EN_MONTHS[month - 1]} {year}, 12:00"
+	display = f"{day} {EN_MONTH_ABBR[month - 1]} {year}, 12:00"
 	return dt, display
 
 
@@ -82,13 +51,17 @@ def fetch_yescom_calendar_html(year: int, *, session: requests.Session | None = 
 	return r.text
 
 
-def scrape_yescom_calendar(year: int, *, session: requests.Session | None = None) -> list[ScrapedRace]:
+def scrape_yescom_calendar(
+	year: int,
+	*,
+	session: requests.Session | None = None,
+	reference_data: ReferenceData | None = None,
+) -> list[ScrapedRace]:
 	session = session or _session()
-	valid_providers = load_valid_provider_slugs()
-	valid_types = load_valid_type_slugs()
-	if "yescom" not in valid_providers:
+	ref = reference_data or get_reference_data() or load_reference_data_from_db()
+	if "yescom" not in ref.valid_provider_slugs:
 		raise RuntimeError("public.providers must include yescom")
-	if "road" not in valid_types:
+	if "road" not in ref.valid_type_slugs:
 		raise RuntimeError("public.types must include road")
 
 	html = fetch_yescom_calendar_html(year, session=session)
@@ -140,8 +113,6 @@ def scrape_yescom_calendar(year: int, *, session: requests.Session | None = None
 
 
 def format_yescom_csv(races: list[ScrapedRace]) -> str:
-	from running_calendar_scrapers.iguana import format_races_csv
-
 	return format_races_csv(races)
 
 

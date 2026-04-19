@@ -9,7 +9,7 @@ from running_calendar_scrapers.corre_brasil import (
 	_parse_place_line,
 	scrape_corre_brasil_calendar_html,
 )
-from running_calendar_scrapers.db_ref import fixture_km_to_slug_corre_brasil_repeater
+from tests._fixtures import km_to_slug_corre_brasil_repeater
 
 
 def test_parse_day_month_variants():
@@ -34,7 +34,7 @@ def test_fixture_repeater_snapshot():
 		html,
 		year=2026,
 		calendar_url="https://www.correbrasil.com.br/calendario-corridas",
-		km_to_slug=fixture_km_to_slug_corre_brasil_repeater(),
+		km_to_slug=km_to_slug_corre_brasil_repeater(),
 	)
 	by_name = {r.name: r for r in races}
 	assert len(races) == 12

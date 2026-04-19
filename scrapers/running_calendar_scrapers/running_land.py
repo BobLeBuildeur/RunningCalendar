@@ -10,14 +10,18 @@ from urllib.parse import urlencode
 
 import requests
 
-from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
-from running_calendar_scrapers.iguana import ScrapedRace, format_races_csv
+from running_calendar_scrapers.context import get_reference_data
+from running_calendar_scrapers.distance_slugs import kms_to_distance_slugs
+from running_calendar_scrapers.http import make_session
+from running_calendar_scrapers.ports import ReferenceData, load_reference_data_from_db
+from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
 GRAPHQL_URL = "https://www.runningland.com.br/graphql"
 CALENDAR_CATEGORY_ID = "3"
 EVENT_LIST_PATH = "/eventos"
 # Browser-like UA: the site's edge/WAF rejects several non-browser tokens on GraphQL.
-USER_AGENT = (
+# This override of the shared DEFAULT_USER_AGENT is deliberate and must stay visible.
+BROWSER_USER_AGENT = (
 	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
 	"Chrome/120.0.0.0 Safari/537.36"
 )
@@ -51,16 +55,14 @@ _METADATA_QUERIES: dict[str, str] = {
 
 
 def _session() -> requests.Session:
-	s = requests.Session()
-	s.headers.update(
-		{
-			"User-Agent": USER_AGENT,
+	return make_session(
+		user_agent=BROWSER_USER_AGENT,
+		extra_headers={
 			"Accept": "application/json",
 			"Referer": REFERER,
 			"Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-		}
+		},
 	)
-	return s
 
 
 def _graphql_get(session: requests.Session, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -162,27 +164,15 @@ def _distance_slugs_from_modality_ids(
 	if not (blob or "").strip():
 		return ""
 
-	slug_to_km = {slug: km for km, slug in km_to_slug.items()}
 	raw_ids = [x.strip() for x in blob.split(",") if x.strip()]
-	slugs: list[str] = []
-	modality_labels: list[str] = []
+	kms: list[float] = []
 	for iid in raw_ids:
 		label = modality_id_to_label.get(iid, "")
-		if label:
-			modality_labels.append(label)
 		km = _label_to_km(label) if label else None
-		if km is None or km not in km_to_slug:
+		if km is None:
 			continue
-		slugs.append(km_to_slug[km])
-
-	unique: list[str] = []
-	for s in slugs:
-		if s not in unique:
-			unique.append(s)
-	unique.sort(key=lambda s: slug_to_km.get(s, 0.0))
-	if unique:
-		return ";".join(unique)
-	return ""
+		kms.append(km)
+	return kms_to_distance_slugs(kms, km_to_slug, strict=False)
 
 
 def _city_state_country(
@@ -248,15 +238,15 @@ def scrape_running_land_calendar(
 	region_map: dict[str, str] | None = None,
 	modality_map: dict[str, str] | None = None,
 	items: list[dict[str, Any]] | None = None,
+	reference_data: ReferenceData | None = None,
 ) -> list[ScrapedRace]:
 	session = session or _session()
-	km_to_slug = load_distance_slugs_by_km()
-	valid_providers = load_valid_provider_slugs()
-	valid_types = load_valid_type_slugs()
-	if "running-land" not in valid_providers:
+	ref = reference_data or get_reference_data() or load_reference_data_from_db()
+	km_to_slug = dict(ref.km_to_slug)
+	if "running-land" not in ref.valid_provider_slugs:
 		raise RuntimeError("public.providers must include running-land")
 	for need in ("road", "trail", "adventure"):
-		if need not in valid_types:
+		if need not in ref.valid_type_slugs:
 			raise RuntimeError(f"public.types must include {need}")
 
 	if city_map is None or region_map is None or modality_map is None:

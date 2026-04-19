@@ -19,17 +19,9 @@ from __future__ import annotations
 
 from typing import Any
 
-RACE_ROW_KEYS: tuple[str, ...] = (
-	"sortKey",
-	"city",
-	"state",
-	"country",
-	"name",
-	"typeSlug",
-	"distanceSlugs",
-	"providerSlug",
-	"detailUrl",
-)
+from running_calendar_scrapers.race_row import RACE_ROW_KEYS
+
+__all__ = ["RACE_ROW_KEYS", "race_row_json_schema"]
 
 
 def race_row_json_schema() -> dict[str, Any]:

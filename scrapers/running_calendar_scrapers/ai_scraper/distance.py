@@ -58,11 +58,21 @@ def normalize_distance_token(raw: str) -> str | None:
 	return _km_to_slug(km)
 
 
-def normalize_distance_slugs(raw_list: str) -> str:
+def normalize_distance_slugs(
+	raw_list: str,
+	*,
+	valid_slugs: set[str] | None = None,
+) -> str:
 	"""Normalise a ``;``/``,``-separated distance blob to canonical slugs.
 
 	Returns a ``;``-separated string sorted by kilometre order. Unknown tokens
 	are dropped silently; duplicate slugs are collapsed.
+
+	When ``valid_slugs`` is provided (e.g. the slug set loaded from
+	``public.distances``), any derived slug not in the whitelist is dropped.
+	This prevents the LLM from inventing slugs like ``3-7km`` that would
+	subsequently fail FK validation during ``--save-to``. When ``None``
+	(legacy behaviour), every well-formed slug is accepted.
 	"""
 	if not raw_list:
 		return ""
@@ -74,7 +84,11 @@ def normalize_distance_slugs(raw_list: str) -> str:
 	slugs: list[str] = []
 	for part in parts:
 		slug = normalize_distance_token(part)
-		if slug and slug not in slugs:
+		if not slug:
+			continue
+		if valid_slugs is not None and slug not in valid_slugs:
+			continue
+		if slug not in slugs:
 			slugs.append(slug)
 
 	def _sort_key(slug: str) -> tuple[int, int]:

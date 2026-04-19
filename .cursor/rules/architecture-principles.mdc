@@ -1,0 +1,37 @@
+---
+description: Key software architecture principles for RunningCalendar (apply to Python scrapers, Astro loaders, and validation scripts)
+globs:
+  - "scrapers/**/*.py"
+  - "scripts/**/*.mjs"
+  - "src/**/*.ts"
+  - "src/**/*.astro"
+alwaysApply: false
+---
+
+# Software architecture principles
+
+Five principles that every change in this repository must respect. They are distilled from SOLID (Robert C. Martin), Clean / Hexagonal Architecture (Cockburn), and the classic DRY / separation-of-concerns rules. Use them as the rubric when reviewing a diff or proposing a refactor.
+
+## 1. Single responsibility per module
+
+A module, class, or function should have **one reason to change**. Mixing HTTP fetching, HTML parsing, DB access, CSV serialisation, and CLI argument handling inside a single file is a smell. Split by concern; name the module after that concern.
+
+## 2. Separation of concerns through ports and adapters
+
+Domain logic (parsing a race, normalising a slug) must not import infrastructure (psycopg2, requests, openai, subprocess). Put infrastructure behind a narrow interface ("port") — a `Protocol`, abstract base, or typed callable — and inject concrete adapters at the edges (CLI entry point, test setup). The core must be runnable in a unit test without a database, a browser, or a network.
+
+## 3. Dependency inversion and explicit configuration
+
+High-level code depends on **abstractions**, never on concrete implementations or ambient state. Read environment variables, build sessions, and construct clients in a single composition root (entry point). Functions receive their dependencies as arguments with defaults; they do not reach into `os.environ`, open sockets, or call `psycopg2.connect()` on their own.
+
+## 4. Single source of truth (DRY) for shared contracts
+
+Every shared concept — the race-row schema, the flat CSV header, the USER_AGENT, the month-token tables, the provider/type/distance whitelist — must be defined **once** and imported where needed. If the same constant, regex, or helper appears in two files, extract it. Cross-scraper utilities belong in a neutral module, not inside `iguana.py`.
+
+## 5. Testability and open/closed extensibility
+
+Favour pure functions with deterministic inputs. New scrapers, loaders, or extractors must plug into a stable interface (e.g. a `Scraper` protocol with `scrape(year) -> list[ScrapedRace]`) without modifying the orchestrator. Tests must be able to substitute fakes for every external dependency (HTTP, DB, LLM, browser); if a test needs monkey-patching of a deep import path, the seam is in the wrong place.
+
+---
+
+When a change would violate one of these principles, the expected response is to refactor the seam first, not to propagate the smell. If a temporary exception is unavoidable, add a short comment explaining the constraint and a `TODO` referencing the principle that is being bent.

@@ -3,93 +3,31 @@
 from __future__ import annotations
 
 import re
-import unicodedata
 from datetime import datetime
 from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
 
-from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
-from running_calendar_scrapers.iguana import ScrapedRace, format_races_csv
+from running_calendar_scrapers.context import get_reference_data
+from running_calendar_scrapers.db_ref import load_distance_slugs_by_km
+from running_calendar_scrapers.distance_slugs import kms_to_distance_slugs
+from running_calendar_scrapers.http import make_session
+from running_calendar_scrapers.locale_pt import br_state_uf, pt_month_number
+from running_calendar_scrapers.ports import ReferenceData, load_reference_data_from_db
+from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
 CALENDAR_URL = "https://www.correbrasil.com.br/calendario-corridas"
-USER_AGENT = "RunningCalendarBot/1.0 (+https://github.com/boblebuildeur/RunningCalendar)"
 
 _SITE_HOST = "correbrasil.com.br"
 
-# When the site lists only the state name (no City/UF), map to UF for non-empty `state` (validate-db).
-_BR_STATE_NAME_TO_UF: dict[str, str] = {
-	"acre": "AC",
-	"alagoas": "AL",
-	"amapa": "AP",
-	"amazonas": "AM",
-	"bahia": "BA",
-	"ceara": "CE",
-	"distrito federal": "DF",
-	"espirito santo": "ES",
-	"goias": "GO",
-	"maranhao": "MA",
-	"mato grosso": "MT",
-	"mato grosso do sul": "MS",
-	"minas gerais": "MG",
-	"para": "PA",
-	"paraiba": "PB",
-	"parana": "PR",
-	"pernambuco": "PE",
-	"piaui": "PI",
-	"rio de janeiro": "RJ",
-	"rio grande do norte": "RN",
-	"rio grande do sul": "RS",
-	"rondonia": "RO",
-	"roraima": "RR",
-	"santa catarina": "SC",
-	"sao paulo": "SP",
-	"sergipe": "SE",
-	"tocantins": "TO",
-}
-
-
-def _norm_state_lookup_key(s: str) -> str:
-	t = unicodedata.normalize("NFKD", s.strip().lower())
-	return "".join(ch for ch in t if not unicodedata.combining(ch))
-
-
-_PT_MONTHS = {
-	"janeiro": 1,
-	"fevereiro": 2,
-	"marco": 3,
-	"abril": 4,
-	"maio": 5,
-	"junho": 6,
-	"julho": 7,
-	"agosto": 8,
-	"setembro": 9,
-	"outubro": 10,
-	"novembro": 11,
-	"dezembro": 12,
-}
-
 
 def _session() -> requests.Session:
-	s = requests.Session()
-	s.headers.update({"User-Agent": USER_AGENT})
-	return s
-
-
-def _norm_month_token(raw: str) -> str | None:
-	s = unicodedata.normalize("NFKD", raw.strip().lower())
-	s = "".join(ch for ch in s if not unicodedata.combining(ch))
-	if s.endswith("co") and s.startswith("mar"):
-		return "marco"
-	return s if s in _PT_MONTHS else None
+	return make_session()
 
 
 def _month_num(token: str | None) -> int | None:
-	if not token:
-		return None
-	n = _norm_month_token(token)
-	return _PT_MONTHS[n] if n else None
+	return pt_month_number(token) if token else None
 
 
 def _parse_event_day_month(date_line: str, year: int) -> tuple[int, int] | None:
@@ -150,7 +88,7 @@ def _parse_place_line(place_line: str) -> tuple[str, str, str]:
 		st = right.strip().upper()
 		if len(st) == 2 and st.isalpha():
 			return (city, st, "Brasil")
-	uf = _BR_STATE_NAME_TO_UF.get(_norm_state_lookup_key(raw))
+	uf = br_state_uf(raw)
 	if uf:
 		return (raw, uf, "Brasil")
 	return (raw, "", "Brasil")
@@ -175,9 +113,8 @@ def _distance_slugs_from_blob(
 	if not blob.strip():
 		return ""
 
-	slug_to_km = {slug: km for km, slug in km_to_slug.items()}
 	tokens = re.split(r"[•,;]+|\s+e\s+|\s+/\s+", blob)
-	slugs: list[str] = []
+	kms: list[float] = []
 	for tok in tokens:
 		t = tok.strip()
 		if not t:
@@ -189,19 +126,12 @@ def _distance_slugs_from_blob(
 		if not m:
 			continue
 		try:
-			km = float(m.group(1))
+			kms.append(float(m.group(1)))
 		except ValueError:
 			continue
-		if km not in km_to_slug:
-			continue
-		slugs.append(km_to_slug[km])
-	unique: list[str] = []
-	for s in slugs:
-		if s not in unique:
-			unique.append(s)
-	unique.sort(key=lambda s: slug_to_km.get(s, 0.0))
-	if unique:
-		return ";".join(unique)
+	joined = kms_to_distance_slugs(kms, km_to_slug, strict=False)
+	if joined:
+		return joined
 	nl = name.lower()
 	if re.search(r"\bkids?\b", blob, re.I) and "trail" not in nl and "ultra" not in nl:
 		return "kids-run"
@@ -307,17 +237,21 @@ def fetch_corre_brasil_calendar_html(*, session: requests.Session | None = None)
 	return r.text
 
 
-def scrape_corre_brasil_calendar(year: int, *, session: requests.Session | None = None) -> list[ScrapedRace]:
+def scrape_corre_brasil_calendar(
+	year: int,
+	*,
+	session: requests.Session | None = None,
+	reference_data: ReferenceData | None = None,
+) -> list[ScrapedRace]:
 	session = session or _session()
-	valid_providers = load_valid_provider_slugs()
-	valid_types = load_valid_type_slugs()
-	if "corre-brasil" not in valid_providers:
+	ref = reference_data or get_reference_data() or load_reference_data_from_db()
+	if "corre-brasil" not in ref.valid_provider_slugs:
 		raise RuntimeError("public.providers must include corre-brasil")
 	for need in ("road", "trail", "adventure"):
-		if need not in valid_types:
+		if need not in ref.valid_type_slugs:
 			raise RuntimeError(f"public.types must include {need}")
 	html = fetch_corre_brasil_calendar_html(session=session)
-	return scrape_corre_brasil_calendar_html(html, year=year)
+	return scrape_corre_brasil_calendar_html(html, year=year, km_to_slug=dict(ref.km_to_slug))
 
 
 def run(argv: list[str] | None = None) -> str:
