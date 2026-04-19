@@ -27,8 +27,15 @@ from running_calendar_scrapers.ai_scraper.loader import (
 )
 from running_calendar_scrapers.ai_scraper.schema import RACE_ROW_KEYS
 from running_calendar_scrapers.ai_scraper.slug import provider_slug_from_url, slugify
-from running_calendar_scrapers.ports import LLMExtractor, OpenAILLMExtractor
+from running_calendar_scrapers.ports import (
+	LLMExtractor,
+	OpenAILLMExtractor,
+	PageLoader as PageLoaderPort,
+)
 
+# Legacy callable form: (url, prefer) -> LoadedPage. Kept for tests that
+# already use the v1 seam; new callers should pass a :class:`PageLoaderPort`
+# instead.
 PageLoader = Callable[[str, str], LoadedPage]
 """Port for rendering a URL. Accepts ``(url, prefer)`` and returns a ``LoadedPage``.
 
@@ -49,6 +56,27 @@ DEFAULT_COUNTRY = "Brasil"
 
 def _default_page_loader(url: str, prefer: str) -> LoadedPage:
 	return load_page(url, prefer=prefer)
+
+
+def _resolve_loader(
+	loader: PageLoader | PageLoaderPort | None,
+	prefer: str,
+) -> Callable[[str], LoadedPage]:
+	"""Normalise the two accepted loader shapes into ``(url) -> LoadedPage``.
+
+	Accepts either the legacy callable ``(url, prefer) -> LoadedPage`` or
+	an object satisfying the :class:`~running_calendar_scrapers.ports.PageLoader`
+	port (``.load(url) -> LoadedPage``). Defaults to the built-in
+	auto-detecting loader.
+	"""
+	if loader is None:
+		return lambda url: _default_page_loader(url, prefer)
+	if callable(loader):  # legacy (url, prefer) -> LoadedPage
+		legacy = loader
+		return lambda url: legacy(url, prefer)
+	# PageLoader port instance
+	port = loader
+	return lambda url: port.load(url)
 
 
 class AIScraperError(RuntimeError):
@@ -130,7 +158,7 @@ def scrape_race_with_ai(
 	vision_model: str | None = None,
 	client: Any | None = None,
 	extractor: LLMExtractor | None = None,
-	page_loader: PageLoader | None = None,
+	page_loader: PageLoader | PageLoaderPort | None = None,
 	valid_types: frozenset[str] | set[str] | None = None,
 	valid_distance_slugs: set[str] | None = None,
 	default_country: str = DEFAULT_COUNTRY,
@@ -183,8 +211,8 @@ def scrape_race_with_ai(
 		text_model=text_model,
 		vision_model=vision_model,
 	)
-	loader = page_loader or _default_page_loader
-	page = loader(url, prefer_loader)
+	load = _resolve_loader(page_loader, prefer_loader)
+	page = load(url)
 
 	post_kwargs: dict[str, Any] = {
 		"valid_types": valid_types,
