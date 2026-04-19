@@ -23,6 +23,10 @@
 	}
 
 	function formatRange(s: number, e: number): string {
+		const atMax = e >= maxKm - 1e-6;
+		if (atMax) {
+			return `${formatKm(s)} — ${formatKm(maxKm)} ou mais`;
+		}
 		return `${formatKm(s)} — ${formatKm(e)}`;
 	}
 
@@ -34,6 +38,16 @@
 
 	onMount(() => {
 		hydrated = true;
+		function onDistanceFromBadge(e: Event) {
+			const ce = e as CustomEvent<{ km?: unknown }>;
+			const raw = ce.detail?.km;
+			if (typeof raw !== 'number' || !Number.isFinite(raw)) return;
+			const k = Math.min(Math.max(raw, minKm), maxKm);
+			start = k;
+			end = k;
+		}
+		document.addEventListener('runningcalendar:distance-from-badge', onDistanceFromBadge);
+		return () => document.removeEventListener('runningcalendar:distance-from-badge', onDistanceFromBadge);
 	});
 
 	$effect(() => {

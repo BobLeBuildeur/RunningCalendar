@@ -34,7 +34,7 @@ describe('Distance range filter', () => {
 	}
 
 	it('shows the same absolute km for min and max when both thumbs are at the same value', () => {
-		const v = 21.1; // midpoint of 0–42.2 km; both thumbs align at the same track position
+		const v = 21.1; // midpoint of 0–41.195 km; both thumbs align at the same track position
 		setRangeStart(v);
 		cy.get('#race-distance-filter-value').should('contain', '21.1 km');
 		setRangeEnd(v);
@@ -76,5 +76,17 @@ describe('Distance range filter', () => {
 		setRangeEnd(25);
 		cy.get('[data-testid="race-distance-filter-range-start"]').should('have.attr', 'max', '25');
 		cy.get('[data-testid="race-distance-filter-range-end"]').should('have.attr', 'min', '15');
+	});
+
+	it('when end is at max (41.195 km), summary shows open upper bound', () => {
+		setRangeEnd(41.195);
+		cy.get('#race-distance-filter-value').should('contain', '41.195 km ou mais');
+	});
+
+	it('when end is at max, includes races at or above marathon distance', () => {
+		setRangeStart(40);
+		setRangeEnd(41.195);
+		cy.get('.race-card[data-distance-kms="42.195"]').first().should('be.visible');
+		cy.get('.race-card[data-distance-kms="5"]').first().should('be.hidden');
 	});
 });
