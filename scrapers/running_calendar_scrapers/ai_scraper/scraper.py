@@ -19,11 +19,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from running_calendar_scrapers.ai_scraper.distance import normalize_distance_slugs
-from running_calendar_scrapers.ai_scraper.extractor import (
-	ensure_all_keys,
-	extract_from_images,
-	extract_from_text,
-)
+from running_calendar_scrapers.ai_scraper.extractor import ensure_all_keys
 from running_calendar_scrapers.ai_scraper.loader import (
 	LoadedPage,
 	iter_main_body_images,
@@ -31,6 +27,7 @@ from running_calendar_scrapers.ai_scraper.loader import (
 )
 from running_calendar_scrapers.ai_scraper.schema import RACE_ROW_KEYS
 from running_calendar_scrapers.ai_scraper.slug import provider_slug_from_url, slugify
+from running_calendar_scrapers.ports import LLMExtractor, OpenAILLMExtractor
 
 PageLoader = Callable[[str, str], LoadedPage]
 """Port for rendering a URL. Accepts ``(url, prefer)`` and returns a ``LoadedPage``.
@@ -104,6 +101,26 @@ def _postprocess(
 	return out
 
 
+def _build_default_extractor(
+	*,
+	client: Any | None,
+	text_model: str | None,
+	vision_model: str | None,
+) -> LLMExtractor:
+	"""Build the default OpenAI-backed :class:`LLMExtractor`.
+
+	Kept separate from :func:`scrape_race_with_ai` so the legacy ``client=`` /
+	``text_model=`` / ``vision_model=`` kwargs continue to work as a thin shim
+	over the port: pass an ``extractor=`` explicitly when you want to swap in
+	a different provider (Anthropic, local model, …).
+	"""
+	return OpenAILLMExtractor(
+		client=client,
+		text_model=text_model,
+		vision_model=vision_model,
+	)
+
+
 def scrape_race_with_ai(
 	url: str,
 	*,
@@ -112,6 +129,7 @@ def scrape_race_with_ai(
 	text_model: str | None = None,
 	vision_model: str | None = None,
 	client: Any | None = None,
+	extractor: LLMExtractor | None = None,
 	page_loader: PageLoader | None = None,
 	valid_types: frozenset[str] | set[str] | None = None,
 	valid_distance_slugs: set[str] | None = None,
@@ -130,10 +148,15 @@ def scrape_race_with_ai(
 		Maximum number of main-body images forwarded to the vision fallback.
 	text_model / vision_model:
 		Override the default OpenAI models (``gpt-4o-mini``). ``None`` uses the
-		defaults in :mod:`.extractor`.
+		defaults in :mod:`.extractor`. Ignored when ``extractor`` is supplied.
 	client:
 		Pre-built OpenAI client (primarily for tests). When ``None``, a client
-		is constructed lazily from the ``OPENAI_API_KEY`` env var.
+		is constructed lazily from the ``OPENAI_API_KEY`` env var. Ignored
+		when ``extractor`` is supplied.
+	extractor:
+		Injected :class:`LLMExtractor` port. When supplied, ``client`` /
+		``text_model`` / ``vision_model`` are ignored — use those legacy
+		kwargs only when you want the default OpenAI adapter.
 	page_loader:
 		Injected page-loader port (``(url, prefer) -> LoadedPage``). Defaults
 		to :func:`running_calendar_scrapers.ai_scraper.loader.load_page`; tests
@@ -155,6 +178,11 @@ def scrape_race_with_ai(
 	if not url:
 		raise AIScraperError("url is required")
 
+	llm: LLMExtractor = extractor or _build_default_extractor(
+		client=client,
+		text_model=text_model,
+		vision_model=vision_model,
+	)
 	loader = page_loader or _default_page_loader
 	page = loader(url, prefer_loader)
 
@@ -164,15 +192,7 @@ def scrape_race_with_ai(
 		"default_country": default_country,
 	}
 
-	text_kwargs: dict[str, Any] = {
-		"url": url,
-		"title": page.title,
-		"text": page.text,
-		"client": client,
-	}
-	if text_model:
-		text_kwargs["model"] = text_model
-	text_row = extract_from_text(**text_kwargs)
+	text_row = llm.extract_from_text(url=url, title=page.title, text=page.text)
 
 	if text_row:
 		return AIScraperResult(
@@ -187,15 +207,7 @@ def scrape_race_with_ai(
 			"Text extraction returned no race data and no images were available in the main body.",
 		)
 
-	vision_kwargs: dict[str, Any] = {
-		"url": url,
-		"title": page.title,
-		"image_urls": image_urls,
-		"client": client,
-	}
-	if vision_model:
-		vision_kwargs["model"] = vision_model
-	vision_row = extract_from_images(**vision_kwargs)
+	vision_row = llm.extract_from_images(url=url, title=page.title, image_urls=image_urls)
 
 	if not vision_row:
 		raise AIScraperError(
@@ -216,6 +228,7 @@ __all__ = [
 	"DEFAULT_COUNTRY",
 	"DEFAULT_TYPE_SLUG",
 	"DEFAULT_VALID_TYPE_SLUGS",
+	"LLMExtractor",
 	"PageLoader",
 	"RACE_ROW_KEYS",
 	"scrape_race_with_ai",
