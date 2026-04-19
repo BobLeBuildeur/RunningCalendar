@@ -11,8 +11,8 @@ The scrapers ship a working pipeline and reasonable unit tests, but the module l
 | # | Principle | Severity | Count | Examples |
 |---|-----------|----------|-------|----------|
 | 1 | Single responsibility per module | **High** | 5 | ✅ resolved — see §1.1–§1.5 |
-| 2 | Separation of concerns (ports & adapters) | **High** | 4 | no HTTP / DB / LLM / browser ports; tests monkey-patch deep paths |
-| 3 | Dependency inversion & explicit configuration | Medium | 3 | four copies of `_session()`; implicit DB connection on every scrape |
+| 2 | Separation of concerns (ports & adapters) | **High** | 4 | ✅ resolved — see §2.1–§2.4 |
+| 3 | Dependency inversion & explicit configuration | Medium | 3 | ✅ resolved — see §3.1–§3.3 |
 | 4 | Single source of truth (DRY) | **High** | 7 | ✅ resolved — see §4.1–§4.7 |
 | 5 | Testability & open-closed extensibility | Medium | 4 | ✅ resolved — see §5.1–§5.4 |
 
@@ -58,42 +58,55 @@ Original: `discover_scraper_names()` walked `Path.glob("*.py")` and called `impo
 
 > "Domain logic must be runnable without a database, a browser, or a network."
 
-### 2.1 No HTTP port
+> **Status: resolved in this PR.** Each sub-item below now carries a "resolved" note pointing at the commit or module that addressed it. The original text is preserved for context.
 
-Every scraper imports `requests` directly and builds a `requests.Session` inline. There is no `HttpClient` interface, no retry/back-off policy, no rate-limiter. Tests that want to avoid live HTTP have to monkey-patch the module-level `requests` attribute or patch `fetch_*` deep imports (see `test_iguana_live_optional.py:23`, `test_ai_scraper_pipeline.py:79`). A small `Protocol` (`def get(url: str, *, timeout: int) -> str`) injected into each scraper would enable in-process fakes and shared retry logic.
+### 2.1 No HTTP port ✅ resolved
 
-### 2.2 No reference-data port
+Original: every scraper imported `requests` directly; no typed `HttpClient` interface.
 
-Parsers call `load_valid_provider_slugs()` / `load_distance_slugs_by_km()` which each open a **new Postgres connection** in `db_ref._connect`. Consequences:
+**Resolution.** `ports.HttpClient` Protocol + `RequestsHttpClient` adapter centralise HTTP GET semantics (retry-friendly entry point, one-place handling of Yescom's ISO-8859-1 encoding quirk). Tests can pass any object with `get_text(url, *, timeout)` as an in-process fake. The existing `session: requests.Session | None` scraper kwargs remain as the legacy seam; callers that want a typed HTTP port use `RequestsHttpClient`. Covered by `tests/test_http_client_port.py`.
 
-- A single scrape opens **three** DB connections before the first HTTP request.
-- `scrape_corre_brasil_calendar()` cannot run without `RUNNINGCALENDAR_DATABASE_URL`, so offline tests must monkey-patch module globals.
+### 2.2 No reference-data port ✅ resolved
 
-Recommendation: a `ReferenceData` port exposing `km_to_slug`, `valid_types`, `valid_providers` as immutable values; the composition root (CLI entry point) resolves it once and passes it into the scraper.
+Original: parsers opened three independent Postgres connections (one each for `load_distance_slugs_by_km` / `load_valid_type_slugs` / `load_valid_provider_slugs`) before the first HTTP request.
 
-### 2.3 No LLM port
+**Resolution.** `ports.ReferenceData` is a frozen snapshot; `load_reference_data_from_db(conn)` builds it from a **single** connection (injectable). Every provider scraper now accepts `reference_data=`; if omitted it consults the process-wide composition context (`context.py`) first, and only falls back to a live DB query as a last resort. `run_scrapers.main` loads it once per CLI invocation (`run all` now opens one connection instead of `3 × N`). Covered by `tests/test_reference_data.py`.
 
-`ai_scraper/extractor.py` constructs its own `OpenAI` client via `_build_client()` and reads `OPENAI_API_KEY` from `os.environ`. Only the optional `client=` kwarg lets tests stub it out, and the coupling to OpenAI-specific SDK shapes (`chat.completions.create`, `response_format={...}`) leaks into the scraper. A minimal `LLMExtractor.extract(prompt) -> dict` port with `OpenAIChatAdapter` would isolate provider lock-in.
+### 2.3 No LLM port ✅ resolved
 
-### 2.4 No browser/loader port
+Original: `ai_scraper/extractor.py` constructed its own `OpenAI` client and leaked SDK specifics (`chat.completions.create`, `response_format={...}`) into the scraper pipeline.
 
-`ai_scraper/loader.py::load_via_cypress` shells out via `subprocess.run(["npx", "cypress", …])` directly inside the scraper pipeline. Running tests requires monkey-patching `load_page` at `running_calendar_scrapers.ai_scraper.scraper.load_page` — a well-known code smell that the seam is on the wrong side of the import boundary. A `PageLoader.load(url) -> LoadedPage` protocol with `CypressLoader` / `RequestsLoader` adapters would remove the monkey-patch.
+**Resolution.** `ports.LLMExtractor` Protocol + `OpenAILLMExtractor` default adapter. `scrape_race_with_ai(..., extractor=...)` accepts any object with `extract_from_text` / `extract_from_images` methods. The legacy `client=` / `text_model=` / `vision_model=` kwargs still work as a shim that builds the default adapter. Covered by `tests/test_llm_extractor_port.py`.
+
+### 2.4 No browser/loader port ✅ resolved
+
+Original: `ai_scraper/loader.py::load_via_cypress` shelled out via `subprocess.run(["npx", "cypress", …])` and mutated `os.environ` directly inside the pipeline.
+
+**Resolution.** `ports.PageLoader` Protocol + `RequestsLoader` / `CypressLoader` / `default_page_loader(prefer)` adapters. All subprocess / env-var / tempfile side effects live inside `CypressLoader`; the pipeline only sees `.load(url)`. `scrape_race_with_ai(..., page_loader=...)` accepts either the legacy `(url, prefer) -> LoadedPage` callable or a port instance. Covered by `tests/test_page_loader_port.py`.
 
 ## Principle 3 — Dependency inversion & explicit configuration
 
 > "Functions receive dependencies as arguments; only the composition root reads env vars."
 
-### 3.1 Four copies of `_session()`
+> **Status: resolved in this PR.** Each sub-item below now carries a "resolved" note pointing at the commit or module that addressed it. The original text is preserved for context.
 
-`iguana.py:65`, `corre_brasil.py:74`, `running_land.py:53`, `yescom.py:48` each define a private `_session()` with a `USER_AGENT` constant. Three use `RunningCalendarBot/1.0 …` verbatim; `running_land.py` silently uses a **different** Chrome UA because its target's WAF blocks bots. That divergence is invisible from any single file. A shared `make_session(user_agent: str = DEFAULT)` helper would make the override explicit.
+### 3.1 Four copies of `_session()` ✅ resolved
 
-### 3.2 `database_url_from_env()` is called from multiple modules
+Original: `iguana`, `corre_brasil`, `running_land`, `yescom`, and `ai_scraper/loader` each owned a private `_session()` + `USER_AGENT` constant.
 
-Both `db_ref._connect` and `supabase_sync.sync_scraped_rows_to_supabase` read env vars independently. If the run-time wants to use a pooler for reads and the primary for writes, there is nowhere to express that: the knob is buried inside every consumer. One composition root should resolve the config once and hand typed `psycopg2` connections (or a `Database` object) to anything that needs them.
+**Resolution.** `http.py::make_session` and `DEFAULT_USER_AGENT` own the default; Running Land's Chrome UA is now an **explicit override** (`BROWSER_USER_AGENT` + `extra_headers`) rather than a copy-paste quirk (commit `a20f60e`, cross-referenced under §4.4).
 
-### 3.3 Scrapers reach into `os.environ` and the filesystem implicitly
+### 3.2 `database_url_from_env()` is called from multiple modules ✅ resolved
 
-`ai_scraper/loader.py::load_via_cypress` mutates `os.environ` and writes a `tempfile` to coordinate with the Cypress spec. This is fine as the private implementation of a `PageLoader` adapter, but with no port it's also the scraper's **public contract**. Pushing the env handling to the adapter hides the side effect from the pipeline.
+Original: `db_ref._connect` and `supabase_sync.sync_scraped_rows_to_supabase` read env vars independently; no composition root resolved the config once.
+
+**Resolution.** The CLI is now the single composition root: it calls `load_reference_data_from_db()` once (one connection, three SELECTs), publishes the resulting `ReferenceData` to `context.py`, and hands the same snapshot to every scraper. `supabase_sync.sync_scraped_rows_to_supabase` already accepts an injectable `conn=` kwarg (from §1.4), so tests and advanced callers can supply a pooled connection without any env-var plumbing. The `database_url_from_env` helper is still the default fallback, but no pipeline code reads it unconditionally.
+
+### 3.3 Scrapers reach into `os.environ` and the filesystem implicitly ✅ resolved
+
+Original: `load_via_cypress` mutated `os.environ` and wrote a `tempfile` inside the scraper pipeline.
+
+**Resolution.** Those side effects are now contained inside the `CypressLoader` adapter (see §2.4). The pipeline only sees `PageLoader.load(url)`; no other scraper code touches `os.environ`, `tempfile`, or `subprocess`.
 
 ## Principle 4 — Single source of truth (DRY)
 
@@ -178,7 +191,7 @@ Original: Adding a column required edits in **five** files (`ScrapedRace`, `RACE
 These are ordered by value-to-effort (not by severity), with cross-references to the principles above:
 
 1. ✅ **Extract `race_row.py`** — `ScrapedRace`, `RACES_HEADER`, `RACE_ROW_KEYS`, `format_races_csv`, `parse_races_csv`, `scraped_to_csv_rows` now live in a neutral module (§1.1, §4.1, §4.2, §5.4).
-2. **Introduce three ports** (`HttpClient`, `ReferenceData`, `PageLoader`) in a `ports.py` module; default adapters keep current behaviour (§2.1, §2.2, §2.4). Medium effort, high payoff on testability. **Partial:** the `PageLoader` port exists on the AI scraper (§5.2); the HTTP and reference-data ports remain outstanding.
+2. ✅ **Introduce ports** (`HttpClient`, `ReferenceData`, `LLMExtractor`, `PageLoader`) in a `ports.py` module with default adapters — landed in this PR (§2.1, §2.2, §2.3, §2.4).
 3. ✅ **Fix `CALESCE` → `COALESCE` in `db_ref.py`** and cover with a fake-cursor unit test (§5.3).
 4. ✅ **Shared locale module** for Portuguese months and Brazilian-state UF mapping (§4.3, §4.7) — implemented as `locale_pt.py`.
 5. ✅ **Define `Scraper` protocol and an explicit registry** in `run_scrapers.py` (§1.5, §5.1). Typed orchestration replaces filesystem discovery.
