@@ -2,6 +2,10 @@
 
 Suggested event names and funnel mapping for **RunningCalendar**, aligned with the [user journey](./user-journey.md). Use these as a contract when wiring a client-side analytics SDK or server-side logging.
 
+## Keeping documentation in sync
+
+Any change to **tagging**, **event names**, **event properties**, **when an event fires**, or other **analytics** behavior in code **must** update this document in the **same change**: at minimum the funnel table, event catalog, and property notes when anything about the contract shifts. When you add or rename events for PostHog, align **event definitions and tags** in the PostHog project as well.
+
 ## Naming conventions (summary)
 
 - **Event names:** `<object>_<action>` — describe *what* happened, not the UI control (e.g. prefer `race_favorite_selected` with `is_saved` over `heart_clicked`).

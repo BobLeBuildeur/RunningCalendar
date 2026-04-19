@@ -1,0 +1,14 @@
+---
+description: Analytics, tagging, and PostHog events must stay aligned with docs/events.md
+globs:
+  - "src/lib/analytics.ts"
+  - "src/components/**/*.svelte"
+  - "src/pages/**/*.astro"
+alwaysApply: false
+---
+
+# Documenting analytics and tagging changes
+
+Any change to **tagging**, **event names**, **event properties**, **when events fire**, or other **analytics** behavior **must** update **`docs/events.md`** in the same change (funnel mapping, event catalog, property notes, and naming conventions if the contract changes).
+
+Do not merge analytics-only code changes without the matching documentation update. When events are registered or described in PostHog, keep the **live project** (definitions, tags) consistent with `docs/events.md` as part of the same release when practical.
