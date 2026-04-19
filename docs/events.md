@@ -15,7 +15,7 @@ Stages follow the primary journey in [user-journey.md](./user-journey.md).
 | Stage | Event |
 | --- | --- |
 | Land on the calendar | `calendar_viewed` |
-| Filter to find a race | `filter_label_clicked`, `location_selected`, `distance_range_selected`, `date_range_selected`, `saved_filter_selected` |
+| Filter to find a race | `filter_label_clicked`, `location_selected`, `distance_range_selected`, `date_range_selected`, `saved_filter_selected`, `calendar_filtered` |
 | Favorite a race | `race_favorite_selected` |
 | Open race details | `race_detail_clicked` |
 
@@ -25,6 +25,7 @@ Stages follow the primary journey in [user-journey.md](./user-journey.md).
 | --- | --- | --- | --- | --- |
 | `calendar_viewed` | Active | Product Analytics | User opened or returned to the calendar home page and the race list was available (static page; first meaningful paint or equivalent). | `source_page` (optional; e.g. referrer path), `base_path` (optional) |
 | `filter_label_clicked` | Active | Product Analytics | User clicked the visible label/heading for a filter row (icon + title above the control). | `filter` (`location` \| `distance` \| `date` \| `saved`), `source_page` |
+| `calendar_filtered` | Active | Product Analytics | Emitted immediately after any of the four filter-selection events below, with the same user action. Use for aggregate “user filtered” funnels; pair with the specific event for dimensions. | `filter_trigger` (`location_selected` \| `distance_range_selected` \| `date_range_selected` \| `saved_filter_selected`), `source_page` |
 | `location_selected` | Active | Product Analytics | User chose a location option in the region filter (including “all” or equivalent). | `location_value`, `source_page` |
 | `distance_range_selected` | Active | Product Analytics | User changed the distance range filter (min/max km). Omit or no-op when the UI hides distance bounds. | `distance_min_km`, `distance_max_km`, `source_page` |
 | `date_range_selected` | Active | Product Analytics | User finished adjusting the date range filter (emitted after a short idle period so rapid clicks do not duplicate the event). | `start`, `end`, `date_range_start`, `date_range_end`, `source_page` |
@@ -38,3 +39,4 @@ Stages follow the primary journey in [user-journey.md](./user-journey.md).
 - **`source_page`** — Path or logical name of the page where the event occurred (e.g. `/RunningCalendar/` for the home calendar).
 - **`destination_url`** — Full URL opened for external race details (from `detail_url` in the data model).
 - **`start` / `end`** — Inclusive calendar-day bounds for the selected range (ISO `YYYY-MM-DD`, local). Duplicated as `date_range_start` / `date_range_end` for dashboards that already use those names.
+- **`filter_trigger`** — On `calendar_filtered`, the specific filter event fired in the same action (`location_selected`, `distance_range_selected`, `date_range_selected`, or `saved_filter_selected`).

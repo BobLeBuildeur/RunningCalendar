@@ -70,6 +70,10 @@ describe('Date range picker', () => {
 			date_range_end: '2026-04-12',
 			source_page: '/RunningCalendar/',
 		});
+		cy.get('@posthogCapture').should('have.been.calledWith', 'calendar_filtered', {
+			filter_trigger: 'date_range_selected',
+			source_page: '/RunningCalendar/',
+		});
 	});
 
 	it('clears the filter when the range is cleared', () => {

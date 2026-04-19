@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { SportShoe } from 'lucide';
 	import { onMount } from 'svelte';
-	import { captureEvent, SOURCE_PAGE } from '../lib/analytics';
+	import { captureFilterSelectionEvent, SOURCE_PAGE } from '../lib/analytics';
 	import DualRangeSlider from './DualRangeSlider.svelte';
 	import LucideIcon from './LucideIcon.svelte';
 
@@ -61,7 +61,7 @@
 			distanceAnalyticsReady = true;
 			return;
 		}
-		captureEvent('distance_range_selected', {
+		captureFilterSelectionEvent('distance_range_selected', {
 			distance_min_km: start,
 			distance_max_km: end,
 			source_page: SOURCE_PAGE,

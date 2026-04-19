@@ -2,6 +2,15 @@ import posthog from 'posthog-js';
 
 export const SOURCE_PAGE = '/RunningCalendar/';
 
+/** Emitted with every `location_selected`, `distance_range_selected`, `date_range_selected`, or `saved_filter_selected` event. */
+export const CALENDAR_FILTERED_EVENT = 'calendar_filtered';
+
+export type FilterSelectionTrigger =
+	| 'location_selected'
+	| 'distance_range_selected'
+	| 'date_range_selected'
+	| 'saved_filter_selected';
+
 declare global {
 	interface Window {
 		__posthog?: typeof posthog;
@@ -46,4 +55,16 @@ export function initPosthog(): void {
 
 export function captureEvent(event: string, props: Record<string, unknown>): void {
 	window.__posthog?.capture(event, props);
+}
+
+/** Fires the specific filter event, then a generic `calendar_filtered` with `filter_trigger`. */
+export function captureFilterSelectionEvent(
+	trigger: FilterSelectionTrigger,
+	props: Record<string, unknown>,
+): void {
+	captureEvent(trigger, props);
+	captureEvent(CALENDAR_FILTERED_EVENT, {
+		filter_trigger: trigger,
+		source_page: typeof props.source_page === 'string' ? props.source_page : SOURCE_PAGE,
+	});
 }

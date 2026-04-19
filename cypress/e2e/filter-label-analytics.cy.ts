@@ -25,4 +25,21 @@ describe('Filter label analytics', () => {
 			source_page: '/RunningCalendar/',
 		});
 	});
+
+	it('captures calendar_filtered with location_selected when the location filter changes', () => {
+		cy.get('#race-location-filter option')
+			.eq(1)
+			.then(($opt) => {
+				const val = String($opt.val());
+				cy.get('#race-location-filter').select(val);
+				cy.get('@posthogCapture').should('have.been.calledWith', 'location_selected', {
+					location_value: val,
+					source_page: '/RunningCalendar/',
+				});
+				cy.get('@posthogCapture').should('have.been.calledWith', 'calendar_filtered', {
+					filter_trigger: 'location_selected',
+					source_page: '/RunningCalendar/',
+				});
+			});
+	});
 });

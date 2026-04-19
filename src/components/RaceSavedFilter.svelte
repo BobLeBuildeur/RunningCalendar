@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Heart } from 'lucide';
 	import { onMount } from 'svelte';
-	import { captureEvent, SOURCE_PAGE } from '../lib/analytics';
+	import { captureFilterSelectionEvent, SOURCE_PAGE } from '../lib/analytics';
 	import LucideIcon from './LucideIcon.svelte';
 
 	let {
@@ -30,7 +30,7 @@
 		const target = event.currentTarget as HTMLInputElement;
 		checked = target.checked;
 		dispatch(checked);
-		captureEvent('saved_filter_selected', {
+		captureFilterSelectionEvent('saved_filter_selected', {
 			saved_only: checked,
 			source_page: SOURCE_PAGE,
 		});

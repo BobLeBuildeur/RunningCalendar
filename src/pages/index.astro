@@ -477,9 +477,14 @@ const filterBarInnerClass =
 				const sel = e.target;
 				const locationValue =
 					sel instanceof HTMLSelectElement ? sel.value.trim() : '';
+				const sp = sourcePagePath();
 				analyticsCapture('location_selected', {
 					location_value: locationValue === '' ? 'all' : locationValue,
-					source_page: sourcePagePath(),
+					source_page: sp,
+				});
+				analyticsCapture('calendar_filtered', {
+					filter_trigger: 'location_selected',
+					source_page: sp,
 				});
 				applyRaceFilters();
 			});

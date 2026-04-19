@@ -9,7 +9,7 @@
 		toDateKey,
 		type DateKey,
 	} from '../lib/dateRangePickerLogic';
-	import { captureEvent, SOURCE_PAGE } from '../lib/analytics';
+	import { captureFilterSelectionEvent, SOURCE_PAGE } from '../lib/analytics';
 	import LucideIcon from './LucideIcon.svelte';
 
 	/** Debounce analytics so we only record after the user stops changing the range (ms). */
@@ -48,7 +48,7 @@
 		cancelPendingDateRangeAnalytics();
 		dateRangeAnalyticsTimer = setTimeout(() => {
 			dateRangeAnalyticsTimer = null;
-			captureEvent('date_range_selected', {
+			captureFilterSelectionEvent('date_range_selected', {
 				start: startKey,
 				end: endKey,
 				date_range_start: startKey,
