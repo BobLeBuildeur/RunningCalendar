@@ -26,9 +26,9 @@ Parent pages can listen for value changes via their own wrappers (for example cu
 
 ## Race distance filter (`src/components/RaceDistanceFilter.svelte`)
 
-Home-page wrapper around `DualRangeSlider` for race discovery. It receives `minKm` and `maxKm` computed at build time from all races’ listed distances (see `distanceBoundsFromRaces` in `src/data/races.ts`), formats labels as kilometres, and dispatches a bubbling `runningcalendar:distance` `CustomEvent` with `{ minKm, maxKm, start, end }` whenever the range changes (including the initial mount).
+Home-page wrapper around `DualRangeSlider` for race discovery. The slider axis is fixed (**0 km → 41.195 km**, see `src/lib/distanceFilter.ts`) so the control stays predictable; it does not stretch to the longest ultra in the dataset. The native range step is **0.001 km** so the maximum thumb position can represent **41.195 km** exactly. It dispatches a bubbling `runningcalendar:distance` `CustomEvent` with `{ minKm, maxKm, start, end }` whenever the range changes (including the initial mount).
 
-**Filtering semantics** (handled in `src/pages/index.astro`): a race is shown if **at least one** of its listed distances (from `public.distances` via slugs loaded at build time) falls **inclusively** within `[start, end]`. When `start` and `end` equal the global min and max, the distance filter is treated as inactive (all races pass the distance check). Races with no listed distances are hidden whenever the distance filter is narrowed.
+**Filtering semantics** (handled in `src/pages/index.astro`): a race is shown if **at least one** of its listed distances (from `public.distances` via slugs loaded at build time) falls within the selected range. When the **end** thumb is at the slider maximum (41.195 km), any distance **greater than or equal to** that value matches (full marathon and longer ultras). Otherwise the end bound is **inclusive** (`k <= end`). When `start` and `end` equal the slider min and max, the distance filter is treated as inactive (all races pass the distance check). Races with no listed distances are hidden whenever the distance filter is narrowed.
 
 ## Date range picker (`src/components/DateRangePicker.svelte`)
 

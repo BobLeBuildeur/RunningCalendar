@@ -23,6 +23,10 @@
 	}
 
 	function formatRange(s: number, e: number): string {
+		const atMax = e >= maxKm - 1e-6;
+		if (atMax) {
+			return `${formatKm(s)} — ${formatKm(maxKm)} ou mais`;
+		}
 		return `${formatKm(s)} — ${formatKm(e)}`;
 	}
 

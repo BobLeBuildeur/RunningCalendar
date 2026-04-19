@@ -21,4 +21,11 @@ describe('Distance badge sets filter range', () => {
 		cy.get('[data-testid="race-distance-filter-range-start"]').should('have.value', '21.1');
 		cy.get('[data-testid="race-distance-filter-range-end"]').should('have.value', '21.1');
 	});
+
+	it('clamps marathon badge km to the slider max (41.195 km)', () => {
+		cy.get('[data-testid="race-distance-badge"][data-distance-km="42.195"]').first().click();
+		cy.get('[data-testid="race-distance-filter-range-start"]').should('have.value', '41.195');
+		cy.get('[data-testid="race-distance-filter-range-end"]').should('have.value', '41.195');
+		cy.get('#race-distance-filter-value').should('contain', '41.195 km ou mais');
+	});
 });
