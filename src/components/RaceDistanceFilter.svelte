@@ -74,7 +74,7 @@
 	data-testid="race-distance-filter"
 	data-hydrated={hydrated ? 'true' : 'false'}
 >
-	<p class="race-distance-filter__label" id="{sliderId}-heading">
+	<p class="race-distance-filter__label" id="{sliderId}-heading" data-rc-filter-label="distance">
 		<LucideIcon icon={SportShoe} class="race-distance-filter__label-icon" size={16} aria-hidden={true} />
 		Distância
 	</p>
