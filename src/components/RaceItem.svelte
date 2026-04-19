@@ -18,23 +18,24 @@
 
 	const locationLine = $derived(formatRaceLocationLine(race));
 
-	type DistanceBadge = { label: string };
+	type DistanceBadge = { label: string; km?: number };
 
 	function distanceBadges(r: RaceRow): DistanceBadge[] {
 		const slugs = r.distanceSlugs;
 		if (slugs.length === 0) return [];
 
 		const maxVisible = 3;
-		const labels = slugs.map((slug) => calendar.labelForDistanceSlug(slug));
+		const entries = slugs.map((slug) => ({
+			label: calendar.labelForDistanceSlug(slug),
+			km: calendar.kmForDistanceSlug(slug),
+		}));
 
-		if (labels.length <= maxVisible) return labels.map((label) => ({ label }));
+		if (entries.length <= maxVisible) return entries;
 
-		const rest = labels.length - maxVisible;
-		return [
-			...labels.slice(0, maxVisible).map((label) => ({ label })),
-			{ label: `+${rest}` },
-		];
+		const rest = entries.length - maxVisible;
+		return [...entries.slice(0, maxVisible), { label: `+${rest}` }];
 	}
+
 
 	const badges = $derived(distanceBadges(race));
 
@@ -67,7 +68,14 @@
 					<ul class="race-card__badges" aria-label="Distâncias">
 						{#each badges as b (b.label)}
 							<li class="race-card__badge-slot">
-								<Badge>{b.label}</Badge>
+								<Badge
+									interactive={b.km !== undefined}
+									data-testid={b.km !== undefined ? 'race-distance-badge' : undefined}
+									data-distance-km={b.km}
+									aria-label={b.km !== undefined ? `Filtrar por ${b.label}` : undefined}
+								>
+									{b.label}
+								</Badge>
 							</li>
 						{/each}
 					</ul>

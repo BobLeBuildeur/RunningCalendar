@@ -34,6 +34,16 @@
 
 	onMount(() => {
 		hydrated = true;
+		function onDistanceFromBadge(e: Event) {
+			const ce = e as CustomEvent<{ km?: unknown }>;
+			const raw = ce.detail?.km;
+			if (typeof raw !== 'number' || !Number.isFinite(raw)) return;
+			const k = Math.min(Math.max(raw, minKm), maxKm);
+			start = k;
+			end = k;
+		}
+		document.addEventListener('runningcalendar:distance-from-badge', onDistanceFromBadge);
+		return () => document.removeEventListener('runningcalendar:distance-from-badge', onDistanceFromBadge);
 	});
 
 	$effect(() => {

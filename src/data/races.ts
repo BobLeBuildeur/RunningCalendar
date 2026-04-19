@@ -168,14 +168,28 @@ function buildCalendarModel(
  * Set `RUNNINGCALENDAR_E2E_FIXTURE=1` during `astro build` (see `preview:e2e` script).
  */
 function loadE2eFixtureCalendar(): CalendarModel {
-	const distances: DistanceRow[] = [{ slug: '10k', km: 10 }];
+	/** Kept in sync with `docs/slug-conventions.md` (kebab-case slugs). */
+	const distances: DistanceRow[] = [
+		{ slug: '5k', km: 5 },
+		{ slug: '10k', km: 10 },
+		{ slug: '21-1km', km: 21.1 },
+		{ slug: '42k', km: 42.195 },
+	];
 	const types: TypeRow[] = [{ slug: 'road', type: 'Road' }];
 	const providers: ProviderRow[] = [
 		{ slug: 'fixture', name: 'Fixture Org', website: 'https://example.com' },
 	];
 	const races: RaceRow[] = [];
+	const distanceByDay: [string, ...string[]][] = [
+		['5k'],
+		['10k'],
+		['21-1km'],
+		['42k'],
+		['5k', '10k'],
+	];
 	for (let d = 1; d <= 30; d++) {
 		const day = String(d).padStart(2, '0');
+		const distanceSlugs = distanceByDay[(d - 1) % distanceByDay.length];
 		races.push({
 			sortKey: `2026-04-${day}T08:00`,
 			city: 'São Paulo',
@@ -183,7 +197,7 @@ function loadE2eFixtureCalendar(): CalendarModel {
 			country: 'Brasil',
 			name: `Corrida fixture ${day}`,
 			typeSlug: 'road',
-			distanceSlugs: ['10k'],
+			distanceSlugs,
 			providerSlug: 'fixture',
 			detailUrl: `https://example.com/fixture-race-2026-04-${day}`,
 		});

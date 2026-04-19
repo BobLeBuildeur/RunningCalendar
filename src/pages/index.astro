@@ -402,6 +402,24 @@ const filterBarInnerClass =
 				applyRaceFilters();
 			});
 
+			document.addEventListener('click', (event) => {
+				const t = event.target;
+				if (!(t instanceof Element)) return;
+				const btn = t.closest('[data-testid="race-distance-badge"][data-distance-km]');
+				if (!(btn instanceof HTMLButtonElement)) return;
+				const raw = btn.getAttribute('data-distance-km');
+				if (!raw) return;
+				const km = Number(raw);
+				if (!Number.isFinite(km)) return;
+				event.preventDefault();
+				document.dispatchEvent(
+					new CustomEvent('runningcalendar:distance-from-badge', {
+						detail: { km },
+						bubbles: true,
+					}),
+				);
+			});
+
 			document.addEventListener('runningcalendar:savedfilter', (e) => {
 				const d = e?.detail;
 				savedOnly = Boolean(d && d.active);
