@@ -8,9 +8,10 @@ from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
-from running_calendar_scrapers.db_ref import load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.context import get_reference_data
 from running_calendar_scrapers.http import make_session
 from running_calendar_scrapers.locale_pt import EN_MONTH_ABBR, pt_month_number
+from running_calendar_scrapers.ports import ReferenceData, load_reference_data_from_db
 from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
 CALENDAR_ASP = "https://www.yescom.com.br/yescom/novosite/codigos/calendario_2016.asp"
@@ -50,13 +51,17 @@ def fetch_yescom_calendar_html(year: int, *, session: requests.Session | None = 
 	return r.text
 
 
-def scrape_yescom_calendar(year: int, *, session: requests.Session | None = None) -> list[ScrapedRace]:
+def scrape_yescom_calendar(
+	year: int,
+	*,
+	session: requests.Session | None = None,
+	reference_data: ReferenceData | None = None,
+) -> list[ScrapedRace]:
 	session = session or _session()
-	valid_providers = load_valid_provider_slugs()
-	valid_types = load_valid_type_slugs()
-	if "yescom" not in valid_providers:
+	ref = reference_data or get_reference_data() or load_reference_data_from_db()
+	if "yescom" not in ref.valid_provider_slugs:
 		raise RuntimeError("public.providers must include yescom")
-	if "road" not in valid_types:
+	if "road" not in ref.valid_type_slugs:
 		raise RuntimeError("public.types must include road")
 
 	html = fetch_yescom_calendar_html(year, session=session)

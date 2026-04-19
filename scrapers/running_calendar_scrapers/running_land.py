@@ -10,9 +10,10 @@ from urllib.parse import urlencode
 
 import requests
 
-from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.context import get_reference_data
 from running_calendar_scrapers.distance_slugs import kms_to_distance_slugs
 from running_calendar_scrapers.http import make_session
+from running_calendar_scrapers.ports import ReferenceData, load_reference_data_from_db
 from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
 GRAPHQL_URL = "https://www.runningland.com.br/graphql"
@@ -237,15 +238,15 @@ def scrape_running_land_calendar(
 	region_map: dict[str, str] | None = None,
 	modality_map: dict[str, str] | None = None,
 	items: list[dict[str, Any]] | None = None,
+	reference_data: ReferenceData | None = None,
 ) -> list[ScrapedRace]:
 	session = session or _session()
-	km_to_slug = load_distance_slugs_by_km()
-	valid_providers = load_valid_provider_slugs()
-	valid_types = load_valid_type_slugs()
-	if "running-land" not in valid_providers:
+	ref = reference_data or get_reference_data() or load_reference_data_from_db()
+	km_to_slug = dict(ref.km_to_slug)
+	if "running-land" not in ref.valid_provider_slugs:
 		raise RuntimeError("public.providers must include running-land")
 	for need in ("road", "trail", "adventure"):
-		if need not in valid_types:
+		if need not in ref.valid_type_slugs:
 			raise RuntimeError(f"public.types must include {need}")
 
 	if city_map is None or region_map is None or modality_map is None:

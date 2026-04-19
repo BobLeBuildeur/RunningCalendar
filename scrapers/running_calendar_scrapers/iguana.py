@@ -9,10 +9,11 @@ from zoneinfo import ZoneInfo
 import requests
 from bs4 import BeautifulSoup
 
-from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.context import get_reference_data
 from running_calendar_scrapers.distance_slugs import kms_to_distance_slugs
 from running_calendar_scrapers.http import make_session
 from running_calendar_scrapers.locale_pt import EN_MONTH_ABBR, pt_month_number
+from running_calendar_scrapers.ports import ReferenceData, load_reference_data_from_db
 # Re-exported so existing call sites (`from iguana import ScrapedRace`, etc.)
 # keep working while the canonical definition lives in ``race_row``.
 from running_calendar_scrapers.race_row import (
@@ -172,14 +173,16 @@ def scrape_race(
 	)
 
 
-def scrape_iguana_calendar(*, session: requests.Session | None = None) -> list[ScrapedRace]:
+def scrape_iguana_calendar(
+	*,
+	session: requests.Session | None = None,
+	reference_data: ReferenceData | None = None,
+) -> list[ScrapedRace]:
 	session = session or _session()
-	km_to_slug = load_distance_slugs_by_km()
-	valid_providers = load_valid_provider_slugs()
-	valid_types = load_valid_type_slugs()
-	if "iguana-sports" not in valid_providers:
+	ref = reference_data or get_reference_data() or load_reference_data_from_db()
+	if "iguana-sports" not in ref.valid_provider_slugs:
 		raise RuntimeError("public.providers must include iguana-sports")
-	if "road" not in valid_types:
+	if "road" not in ref.valid_type_slugs:
 		raise RuntimeError("public.types must include road")
 
 	r = session.get(CALENDAR_URL, timeout=60)
@@ -188,7 +191,7 @@ def scrape_iguana_calendar(*, session: requests.Session | None = None) -> list[S
 	out: list[ScrapedRace] = []
 	for slug in slugs:
 		html = fetch_race_article(session, slug)
-		out.append(scrape_race(slug, html, km_to_slug=km_to_slug))
+		out.append(scrape_race(slug, html, km_to_slug=dict(ref.km_to_slug)))
 	return sorted(out, key=lambda x: x.sort_key)
 
 

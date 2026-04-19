@@ -32,6 +32,8 @@ from __future__ import annotations
 import argparse
 import sys
 
+from running_calendar_scrapers import context
+from running_calendar_scrapers.ports import load_reference_data_from_db
 from running_calendar_scrapers.race_row import parse_races_csv
 from running_calendar_scrapers.scraper_registry import (
 	available_scrapers,
@@ -97,6 +99,15 @@ def main() -> None:
 	except KeyError as exc:
 		# KeyError's str() wraps the message in quotes; pull the arg out directly.
 		raise SystemExit(exc.args[0] if exc.args else str(exc)) from exc
+
+	# Load reference data once per CLI invocation. The best-effort try/except
+	# keeps scrapers that construct their own connection lazily from regressing
+	# if the env var happens to be unset in a specific workflow (e.g. running
+	# only Iguana against cached fixtures via an alternate path).
+	try:
+		context.set_reference_data(load_reference_data_from_db())
+	except Exception as e:
+		print(f"warning: could not preload reference data ({e}); scrapers will reload per-call.", file=sys.stderr)
 
 	extra = ["--year", str(args.year)]
 	sep = "\n---\n"

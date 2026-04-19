@@ -9,10 +9,12 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from running_calendar_scrapers.db_ref import load_distance_slugs_by_km, load_valid_provider_slugs, load_valid_type_slugs
+from running_calendar_scrapers.context import get_reference_data
+from running_calendar_scrapers.db_ref import load_distance_slugs_by_km
 from running_calendar_scrapers.distance_slugs import kms_to_distance_slugs
 from running_calendar_scrapers.http import make_session
 from running_calendar_scrapers.locale_pt import br_state_uf, pt_month_number
+from running_calendar_scrapers.ports import ReferenceData, load_reference_data_from_db
 from running_calendar_scrapers.race_row import ScrapedRace, format_races_csv
 
 CALENDAR_URL = "https://www.correbrasil.com.br/calendario-corridas"
@@ -235,17 +237,21 @@ def fetch_corre_brasil_calendar_html(*, session: requests.Session | None = None)
 	return r.text
 
 
-def scrape_corre_brasil_calendar(year: int, *, session: requests.Session | None = None) -> list[ScrapedRace]:
+def scrape_corre_brasil_calendar(
+	year: int,
+	*,
+	session: requests.Session | None = None,
+	reference_data: ReferenceData | None = None,
+) -> list[ScrapedRace]:
 	session = session or _session()
-	valid_providers = load_valid_provider_slugs()
-	valid_types = load_valid_type_slugs()
-	if "corre-brasil" not in valid_providers:
+	ref = reference_data or get_reference_data() or load_reference_data_from_db()
+	if "corre-brasil" not in ref.valid_provider_slugs:
 		raise RuntimeError("public.providers must include corre-brasil")
 	for need in ("road", "trail", "adventure"):
-		if need not in valid_types:
+		if need not in ref.valid_type_slugs:
 			raise RuntimeError(f"public.types must include {need}")
 	html = fetch_corre_brasil_calendar_html(session=session)
-	return scrape_corre_brasil_calendar_html(html, year=year)
+	return scrape_corre_brasil_calendar_html(html, year=year, km_to_slug=dict(ref.km_to_slug))
 
 
 def run(argv: list[str] | None = None) -> str:
