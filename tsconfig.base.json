@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@running-calendar/liba": ["libs/liba/src/index.ts"],
+      "@running-calendar/liba/*": ["libs/liba/src/*"]
+    }
+  }
+}

@@ -3,8 +3,9 @@ description: Key software architecture principles for RunningCalendar (apply to 
 globs:
   - "scrapers/**/*.py"
   - "scripts/**/*.mjs"
-  - "src/**/*.ts"
-  - "src/**/*.astro"
+  - "apps/site/src/**/*.ts"
+  - "apps/site/src/**/*.astro"
+  - "libs/**/*.ts"
 alwaysApply: false
 ---
 

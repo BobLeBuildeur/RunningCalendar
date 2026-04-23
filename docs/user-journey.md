@@ -27,8 +27,8 @@ journey
 
 ## What each step maps to
 
-- **Filters** — Location select, distance slider, date range, and “Somente corridas salvas” work together; all run client-side on the rendered list (`src/pages/index.astro` and related Svelte components).
-- **Save / favorite** — The heart control on each card persists **saved race ids** (the race’s `detailUrl`) in **local storage**; see `src/lib/savedRaces.ts` and `SaveRaceButton`.
-- **Details** — There is no in-app detail route; **Ver detalhes** links to the canonical **`detailUrl`** from the database (`raceUrl()` in `src/data/races.ts`).
+- **Filters** — Location select, distance slider, date range, and “Somente corridas salvas” work together; all run client-side on the rendered list (`apps/site/src/pages/index.astro` and related Svelte components).
+- **Save / favorite** — The heart control on each card persists **saved race ids** (the race’s `detailUrl`) in **local storage**; see `apps/site/src/lib/savedRaces.ts` and `SaveRaceButton`.
+- **Details** — There is no in-app detail route; **Ver detalhes** links to the canonical **`detailUrl`** from the database (`raceUrl()` in `apps/site/src/data/races.ts`).
 
 For schema and build-time data flow, see [data-model.md](./data-model.md).

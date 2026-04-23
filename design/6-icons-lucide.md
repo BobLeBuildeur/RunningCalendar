@@ -3,7 +3,7 @@
 RunningCalendar uses **[Lucide](https://lucide.dev)** for UI icons: a single stroke-based family that matches our clean, readable interface (see `design/1-principles.md`, `design/4-typography.md`). Icons are implemented with:
 
 - **`@lucide/astro`** — Astro pages and static markup (`import MapPin from '@lucide/astro/icons/map-pin'`).
-- **`lucide`** — icon definitions as data (`import { Calendar } from 'lucide'`). Svelte islands render them through **`LucideIcon`** (`src/components/LucideIcon.svelte`), which mirrors Lucide’s default SVG attributes and works with Astro’s static prerender (unlike importing prebuilt `.svelte` icons from `node_modules`).
+- **`lucide`** — icon definitions as data (`import { Calendar } from 'lucide'`). Svelte islands render them through **`LucideIcon`** (`libs/liba/src/components/LucideIcon.svelte`), which mirrors Lucide’s default SVG attributes and works with Astro’s static prerender (unlike importing prebuilt `.svelte` icons from `node_modules`).
 
 The **`lucide`** package is the shared source of icon geometry; keep imports named and tree-shake friendly.
 

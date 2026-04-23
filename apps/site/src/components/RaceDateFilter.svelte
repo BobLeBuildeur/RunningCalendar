@@ -2,7 +2,7 @@
 	import { Calendar } from 'lucide';
 	import { onMount } from 'svelte';
 	import DateRangePicker from './DateRangePicker.svelte';
-	import LucideIcon from './LucideIcon.svelte';
+	import { LucideIcon } from '@running-calendar/liba';
 
 	let {
 		fieldId = 'race-date-filter',

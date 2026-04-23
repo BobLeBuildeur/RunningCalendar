@@ -1,6 +1,6 @@
 # UI components
 
-## Dual Range Slider (`src/components/DualRangeSlider.svelte`)
+## Dual Range Slider (`libs/liba/src/components/DualRangeSlider.svelte`)
 
 Agnostic two-thumb range control for selecting a **start** and **end** value on a single numeric axis.
 
@@ -24,13 +24,13 @@ Agnostic two-thumb range control for selecting a **start** and **end** value on 
 
 Parent pages can listen for value changes via their own wrappers (for example custom events).
 
-## Race distance filter (`src/components/RaceDistanceFilter.svelte`)
+## Race distance filter (`apps/site/src/components/RaceDistanceFilter.svelte`)
 
-Home-page wrapper around `DualRangeSlider` for race discovery. The slider axis is fixed (**0 km → 41.195 km**, see `src/lib/distanceFilter.ts`) so the control stays predictable; it does not stretch to the longest ultra in the dataset. The native range step is **0.001 km** so the maximum thumb position can represent **41.195 km** exactly. It dispatches a bubbling `runningcalendar:distance` `CustomEvent` with `{ minKm, maxKm, start, end }` whenever the range changes (including the initial mount).
+Home-page wrapper around `DualRangeSlider` for race discovery. The slider axis is fixed (**0 km → 41.195 km**, see `apps/site/src/lib/distanceFilter.ts`) so the control stays predictable; it does not stretch to the longest ultra in the dataset. The native range step is **0.001 km** so the maximum thumb position can represent **41.195 km** exactly. It dispatches a bubbling `runningcalendar:distance` `CustomEvent` with `{ minKm, maxKm, start, end }` whenever the range changes (including the initial mount).
 
-**Filtering semantics** (handled in `src/pages/index.astro`): a race is shown if **at least one** of its listed distances (from `public.distances` via slugs loaded at build time) falls within the selected range. When the **end** thumb is at the slider maximum (41.195 km), any distance **greater than or equal to** that value matches (full marathon and longer ultras). Otherwise the end bound is **inclusive** (`k <= end`). When `start` and `end` equal the slider min and max, the distance filter is treated as inactive (all races pass the distance check). Races with no listed distances are hidden whenever the distance filter is narrowed.
+**Filtering semantics** (handled in `apps/site/src/pages/index.astro`): a race is shown if **at least one** of its listed distances (from `public.distances` via slugs loaded at build time) falls within the selected range. When the **end** thumb is at the slider maximum (41.195 km), any distance **greater than or equal to** that value matches (full marathon and longer ultras). Otherwise the end bound is **inclusive** (`k <= end`). When `start` and `end` equal the slider min and max, the distance filter is treated as inactive (all races pass the distance check). Races with no listed distances are hidden whenever the distance filter is narrowed.
 
-## Date range picker (`src/components/DateRangePicker.svelte`)
+## Date range picker (`apps/site/src/components/DateRangePicker.svelte`)
 
 Agnostic calendar UI for choosing an **inclusive** start and end **calendar day** (local date keys `YYYY-MM-DD`). It does not know about races or CSV data.
 
@@ -42,7 +42,7 @@ Agnostic calendar UI for choosing an **inclusive** start and end **calendar day*
 | `invalid` | Exactly one of start/end (partial selection) |
 | `valid` | Both start and end set |
 
-**Behavior** (selection rules live in `src/lib/dateRangePickerLogic.ts`):
+**Behavior** (selection rules live in `libs/liba/src/utils/dateRangePickerLogic.ts`):
 
 - First click sets the start date → `invalid`.
 - Second click completes the range (before or after the start) → `valid`, or clears if it is the same day as the lone start → `inactive`.
@@ -65,22 +65,22 @@ Agnostic calendar UI for choosing an **inclusive** start and end **calendar day*
 
 **E2E builds:** `npm run preview:e2e` sets `RUNNINGCALENDAR_E2E_FIXTURE=1` so `npm run build` uses a small in-repo calendar instead of PostgreSQL (for Cypress in CI and local runs without a DB URL).
 
-## Race date filter (`src/components/RaceDateFilter.svelte`)
+## Race date filter (`apps/site/src/components/RaceDateFilter.svelte`)
 
 Home-page wrapper: label + `DateRangePicker` with `fieldId` defaulting to `race-date-filter`.
 
-**Filtering semantics** (handled in `src/pages/index.astro`): each race card exposes `data-race-date` (YYYY-MM-DD from `sortKey`). When the date range is `valid`, a race is shown only if `data-race-date` is **inclusively** between `start` and `end`. When the range is `inactive` or `invalid`, no date filter is applied (same pattern as location + distance).
+**Filtering semantics** (handled in `apps/site/src/pages/index.astro`): each race card exposes `data-race-date` (YYYY-MM-DD from `sortKey`). When the date range is `valid`, a race is shown only if `data-race-date` is **inclusively** between `start` and `end`. When the range is `inactive` or `invalid`, no date filter is applied (same pattern as location + distance).
 
-## Save race button (`src/components/SaveRaceButton.svelte`)
+## Save race button (`apps/site/src/components/SaveRaceButton.svelte`)
 
-Heart-shaped toggle rendered inside every race card header (`src/components/RaceItem.svelte`) that marks a race as saved. The component renders SSR-only markup (a `.save-race` button with `data-race-id` + `data-saved="false"` and `data-label-save` / `data-label-unsave` strings for accessibility). All interactivity — reading/writing `localStorage`, updating `data-saved` + filling the SVG heart, and updating `aria-label` / `aria-pressed` — is handled by a single delegated `click` handler in the inline script of `src/pages/index.astro`. This avoids hydrating one Svelte island per race card and keeps the page static.
+Heart-shaped toggle rendered inside every race card header (`apps/site/src/components/RaceItem.svelte`) that marks a race as saved. The component renders SSR-only markup (a `.save-race` button with `data-race-id` + `data-saved="false"` and `data-label-save` / `data-label-unsave` strings for accessibility). All interactivity — reading/writing `localStorage`, updating `data-saved` + filling the SVG heart, and updating `aria-label` / `aria-pressed` — is handled by a single delegated `click` handler in the inline script of `apps/site/src/pages/index.astro`. This avoids hydrating one Svelte island per race card and keeps the page static.
 
-**Storage contract** (`src/lib/savedRaces.ts`): `localStorage` key `runningcalendar:saved-races` holds a JSON array of race identifiers. The identifier used for each race is its `detailUrl` (stable per the data model, see `docs/data-model.md`). The constant is imported by the Astro page and embedded in a `<script type="application/json" id="running-calendar-config">` block so that the inline filter script reads the same key without duplicating the string.
+**Storage contract** (`apps/site/src/lib/savedRaces.ts`): `localStorage` key `runningcalendar:saved-races` holds a JSON array of race identifiers. The identifier used for each race is its `detailUrl` (stable per the data model, see `docs/data-model.md`). The constant is imported by the Astro page and embedded in a `<script type="application/json" id="running-calendar-config">` block so that the inline filter script reads the same key without duplicating the string.
 
-**Visual state**: muted (`--color-text-secondary`) when not saved, brand primary (`--color-primary`) filled when saved. Styles live in `src/styles/global.css` so state selectors such as `.save-race[data-saved='true']` keep matching after the delegated handler flips the attribute.
+**Visual state**: muted (`--color-text-secondary`) when not saved, brand primary (`--color-primary`) filled when saved. Styles live in `apps/site/src/styles/global.css` so state selectors such as `.save-race[data-saved='true']` keep matching after the delegated handler flips the attribute.
 
-## Race saved filter (`src/components/RaceSavedFilter.svelte`)
+## Race saved filter (`apps/site/src/components/RaceSavedFilter.svelte`)
 
 Home-page wrapper: heart-icon label + a native checkbox ("Somente corridas salvas"). On change it dispatches a bubbling `runningcalendar:savedfilter` `CustomEvent` on `document` with `detail.active: boolean`.
 
-**Filtering semantics** (handled in `src/pages/index.astro`): when active, races are shown only if their `data-race-id` appears in the saved set read from `localStorage` **at the moment the user toggled the checkbox**. Toggling individual heart buttons after that does **not** re-apply the filter — the visible list only changes when the user interacts with the saved-filter checkbox again. This is intentional: it prevents cards from disappearing under the user's cursor as they curate their list. The checkbox state itself is session-only (not persisted).
+**Filtering semantics** (handled in `apps/site/src/pages/index.astro`): when active, races are shown only if their `data-race-id` appears in the saved set read from `localStorage` **at the moment the user toggled the checkbox**. Toggling individual heart buttons after that does **not** re-apply the filter — the visible list only changes when the user interacts with the saved-filter checkbox again. This is intentional: it prevents cards from disappearing under the user's cursor as they curate their list. The checkbox state itself is session-only (not persisted).

@@ -1,6 +1,6 @@
 # Data model
 
-**PostgreSQL on Supabase** is the **only source of truth** for calendar data: `src/data/races.ts` calls `loadCalendar()` at **build time** (SSR in Astro) and reads `public.providers`, `public.types`, `public.distances`, `public.races`, and `public.race_distances`. Set **`RUNNINGCALENDAR_DATABASE_URL`**, **`DATABASE_URL`**, or **`SUPABASE_DB_URL`** to the Supabase **session mode** Postgres URI. The browser still receives a static page; there is no client-side DB access.
+**PostgreSQL on Supabase** is the **only source of truth** for calendar data: `apps/site/src/data/races.ts` calls `loadCalendar()` at **build time** (SSR in Astro) and reads `public.providers`, `public.types`, `public.distances`, `public.races`, and `public.race_distances`. Set **`RUNNINGCALENDAR_DATABASE_URL`**, **`DATABASE_URL`**, or **`SUPABASE_DB_URL`** to the Supabase **session mode** Postgres URI. The browser still receives a static page; there is no client-side DB access.
 
 Schema validation: run **`npm run validate-db`** locally (requires the same env vars). Slug rules are summarized in [slug-conventions.md](./slug-conventions.md).
 

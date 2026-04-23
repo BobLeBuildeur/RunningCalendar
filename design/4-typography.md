@@ -1,6 +1,6 @@
 # Typography
 
-Typography uses **Manrope** as the primary typeface: a geometric sans with open forms, readable at small sizes and confident at display sizes. **CSS custom properties** in `src/styles/tokens.css` implement the tokens below—use those names in components instead of raw `font-size`, `font-weight`, or color values.
+Typography uses **Manrope** as the primary typeface: a geometric sans with open forms, readable at small sizes and confident at display sizes. **CSS custom properties** in `apps/site/src/styles/tokens.css` implement the tokens below—use those names in components instead of raw `font-size`, `font-weight`, or color values.
 
 ---
 

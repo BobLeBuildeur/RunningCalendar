@@ -2,14 +2,14 @@
 	/**
 	 * SSR-only heart toggle. Interactivity (read/write `localStorage`, toggle
 	 * visual state, dispatch change events) is handled by delegated inline JS in
-	 * `src/pages/index.astro` so that we do not have to hydrate a Svelte island
-	 * for every race card. See `src/lib/savedRaces.ts` for the shared storage
+	 * `apps/site/src/pages/index.astro` so that we do not have to hydrate a Svelte island
+	 * for every race card. See `apps/site/src/lib/savedRaces.ts` for the shared storage
 	 * contract (key + change-event name). All styles for `.save-race` live in
-	 * `src/styles/global.css` so state selectors such as `[data-saved='true']`
+	 * `apps/site/src/styles/global.css` so state selectors such as `[data-saved='true']`
 	 * match the button reliably after client-side upgrades.
 	 */
 	import { Heart } from 'lucide';
-	import LucideIcon from './LucideIcon.svelte';
+	import { LucideIcon } from '@running-calendar/liba';
 
 	let {
 		raceId,

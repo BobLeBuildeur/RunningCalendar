@@ -8,9 +8,9 @@
 		parseDateKey,
 		toDateKey,
 		type DateKey,
-	} from '../lib/dateRangePickerLogic';
+	} from '@running-calendar/liba';
 	import { captureEvent, SOURCE_PAGE } from '../lib/analytics';
-	import LucideIcon from './LucideIcon.svelte';
+	import { LucideIcon } from '@running-calendar/liba';
 
 	/** Debounce analytics so we only record after the user stops changing the range (ms). */
 	const DATE_RANGE_ANALYTICS_DEBOUNCE_MS = 400;

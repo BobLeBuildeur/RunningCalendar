@@ -1,6 +1,6 @@
 # RunningCalendar
 
-Astro site bootstrapped for deployment to **GitHub Pages** (project site).
+Nx monorepo with the Astro frontend in `apps/site` and shared agnostic UI utilities in `libs/liba`.
 
 ## Local development
 
@@ -9,10 +9,22 @@ npm install
 npm run dev
 ```
 
+Equivalent direct Nx command:
+
+```bash
+npx nx run site:dev
+```
+
 ## Build
 
 ```bash
 npm run build
+```
+
+Equivalent direct Nx command:
+
+```bash
+npx nx run site:build
 ```
 
 Preview the static output:
@@ -24,8 +36,8 @@ npm run preview
 ## GitHub Pages setup
 
 1. In the repository **Settings → Pages**, set **Source** to **GitHub Actions**.
-2. In `astro.config.mjs`, `site` is set to this org/user’s GitHub Pages host and `base` is `/RunningCalendar/` for a project site at `https://boblebuildeur.github.io/RunningCalendar/`. If you fork or rename the repo, update `site` and `base` to match [Astro’s GitHub deploy guide](https://docs.astro.build/en/guides/deploy/github/).
-3. Push to `main`; the **Deploy Astro to GitHub Pages** workflow builds and publishes the `dist` folder.
+2. In `apps/site/astro.config.mjs`, `site` is set to this org/user’s GitHub Pages host and `base` is `/RunningCalendar/` for a project site at `https://boblebuildeur.github.io/RunningCalendar/`. If you fork or rename the repo, update `site` and `base` to match [Astro’s GitHub deploy guide](https://docs.astro.build/en/guides/deploy/github/).
+3. Push to `main`; the **Deploy Astro to GitHub Pages** workflow builds and publishes the `apps/site/dist` folder.
 
 ## Stack
 
@@ -34,7 +46,7 @@ npm run preview
 
 ## Data
 
-The home page is built from **Supabase (PostgreSQL)** at **`npm run build`** time (`loadCalendar()` in `src/data/races.ts`). Set **`RUNNINGCALENDAR_DATABASE_URL`**, **`DATABASE_URL`**, or **`SUPABASE_DB_URL`** to your **session mode** Postgres URI (Project Settings → Database). For **GitHub Pages**, store that URI in a repo secret and inject it in the deploy workflow.
+The home page is built from **Supabase (PostgreSQL)** at **`npm run build`** time (`loadCalendar()` in `apps/site/src/data/races.ts`). Set **`RUNNINGCALENDAR_DATABASE_URL`**, **`DATABASE_URL`**, or **`SUPABASE_DB_URL`** to your **session mode** Postgres URI (Project Settings → Database). For **GitHub Pages**, store that URI in a repo secret and inject it in the deploy workflow.
 
 There are **no checked-in CSV data files**; **[data model](docs/data-model.md)** describes the schema and how scraper output maps to tables.
 

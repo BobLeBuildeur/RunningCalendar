@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Badge from './Badge.svelte';
+	import { Badge } from '@running-calendar/liba';
 	import SaveRaceButton from './SaveRaceButton.svelte';
 	import {
 		formatRaceDateTimeDisplay,
@@ -49,7 +49,7 @@
 	/** YYYY-MM-DD in local calendar for date-range filtering */
 	const raceDateKey = $derived(race.sortKey.slice(0, 10));
 
-	/** Stable race identifier for saved-races persistence (see src/lib/savedRaces.ts). */
+	/** Stable race identifier for saved-races persistence (see apps/site/src/lib/savedRaces.ts). */
 	const raceId = $derived(href);
 </script>
 

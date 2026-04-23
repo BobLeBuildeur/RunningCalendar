@@ -2,7 +2,7 @@
 	import { Heart } from 'lucide';
 	import { onMount } from 'svelte';
 	import { captureEvent, SOURCE_PAGE } from '../lib/analytics';
-	import LucideIcon from './LucideIcon.svelte';
+import { LucideIcon } from '@running-calendar/liba';
 
 	let {
 		fieldId = 'race-saved-filter',

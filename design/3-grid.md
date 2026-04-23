@@ -13,7 +13,7 @@ Content is typically centered horizontally within the viewport; the grid contain
 
 ### Page inset (edge padding)
 
-Horizontal space between the viewport edge and the content block keeps text readable on wide and narrow screens. Implementation uses **`--layout-page-inset`**: `space.md` (16px) by default, **`space.lg`** (24px) from the tablet breakpoint upward, **`space.xl`** (32px) from desktop upward. See `src/styles/tokens.css`.
+Horizontal space between the viewport edge and the content block keeps text readable on wide and narrow screens. Implementation uses **`--layout-page-inset`**: `space.md` (16px) by default, **`space.lg`** (24px) from the tablet breakpoint upward, **`space.xl`** (32px) from desktop upward. See `apps/site/src/styles/tokens.css`.
 
 ### CSS layout utilities
 
